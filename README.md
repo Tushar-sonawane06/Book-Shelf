@@ -133,7 +133,7 @@ This structure keeps merge conflicts low (contributors mostly touch separate fil
 
 ---
 
-## 8. Why This Works for ECOS
+## 8. Why This Works for ECoC
 
 - **No DB setup** → contributors can start in under 5 minutes
 - **Clear isolation of tasks** → scales to large contributor counts without merge conflicts
