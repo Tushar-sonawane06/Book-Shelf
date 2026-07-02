@@ -1,0 +1,101 @@
+.book-card {
+  background: var(--paper-dim);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.book-card:hover {
+  transform: translateY(-4px);
+}
+
+.book-card__cover {
+  position: relative;
+  height: 170px;
+  background: var(--cover-color);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.book-card__cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  left: 0;
+  width: 10px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.book-card__genre {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(245, 240, 229, 0.85);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.book-card__cover-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--paper);
+  line-height: 1.15;
+}
+
+.book-card__body {
+  padding: 16px;
+}
+
+.book-card__title {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.book-card__author {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 14px;
+}
+
+.book-card__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.book-card__rating {
+  color: var(--gold);
+}
+
+.book-card__price {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.book-card__add {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: 4px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.book-card__add:hover {
+  background: var(--ink);
+  color: var(--paper);
+}

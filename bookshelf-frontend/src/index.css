@@ -1,0 +1,81 @@
+:root {
+  /* Color tokens — reading-room palette */
+  --paper: #F5F0E5;
+  --paper-dim: #ECE3D1;
+  --ink: #221E19;
+  --ink-soft: #55503F;
+  --leather: #B85C2C;
+  --leather-deep: #93461F;
+  --pine: #1F4B43;
+  --pine-deep: #14332D;
+  --gold: #C69A2A;
+  --line: rgba(34, 30, 25, 0.12);
+
+  /* Type tokens */
+  --font-display: 'Fraunces', serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  --radius-card: 6px;
+  --shadow-card: 0 2px 0 rgba(34,30,25,0.06), 0 12px 24px -16px rgba(34,30,25,0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+p {
+  margin: 0;
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--leather);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
