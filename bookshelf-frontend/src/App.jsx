@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'react';
+
 import ScrollToTop from './components/ScrollToTop.jsx';
+
+import CustomCursor from './components/CustomCursor.jsx';
+
 import Navbar from './components/Navbar.jsx';
 import Hero from './components/Hero.jsx';
 import GenreFilter from './components/GenreFilter.jsx';
@@ -23,8 +27,13 @@ export default function App() {
 
   return (
     <div className="app">
+
       <ScrollToTop />
+
+      <CustomCursor />
+
       <Navbar cartCount={cart.length} onCartClick={() => {}} />
+      <div className="nav-spacer" />
       <Hero />
 
       <main className="catalog" id="catalog">
