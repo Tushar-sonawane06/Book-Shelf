@@ -38,3 +38,5 @@ export default function ScrollToTop() {
       aria-hidden={!visible}
       tabIndex={visible ? 0 : -1}
     ></button>
+  )
+}

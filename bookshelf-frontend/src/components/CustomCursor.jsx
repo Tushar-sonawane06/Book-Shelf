@@ -10,10 +10,10 @@ export default function CustomCursor() {
 
   useEffect(() => {
     const isTouchDevice =
-      window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+      window.matchMedia('(pointer: coarse)').matches ||
+      'ontouchstart' in window;
 
-    // Don't run any of the cursor logic on touch devices.
-    if (isTouchDevice) return undefined;
+    if (isTouchDevice) return;
 
     document.body.classList.add('custom-cursor-active');
 
@@ -25,7 +25,7 @@ export default function CustomCursor() {
     let mouseY = window.innerHeight / 2;
     let ringX = mouseX;
     let ringY = mouseY;
-    let rafId = null;
+    let rafId;
 
     function moveDot() {
       if (dotRef.current) {
@@ -38,20 +38,19 @@ export default function CustomCursor() {
       mouseY = event.clientY;
       moveDot();
 
-      // If the user prefers reduced motion, skip the smooth "lag" and
-      // move the ring instantly along with the dot.
       if (prefersReducedMotion && ringRef.current) {
         ringRef.current.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0) translate(-50%, -50%)`;
       }
     }
 
     function animateRing() {
-      // Smoothly "chase" the mouse position (simple linear interpolation).
       ringX += (mouseX - ringX) * 0.15;
       ringY += (mouseY - ringY) * 0.15;
+
       if (ringRef.current) {
         ringRef.current.style.transform = `translate3d(${ringX}px, ${ringY}px, 0) translate(-50%, -50%)`;
       }
+
       rafId = requestAnimationFrame(animateRing);
     }
 
@@ -64,13 +63,19 @@ export default function CustomCursor() {
     }
 
     function handleMouseOver(event) {
-      if (event.target.closest(HOVER_SELECTOR)) {
+      if (
+        event.target instanceof Element &&
+        event.target.closest(HOVER_SELECTOR)
+      ) {
         ringRef.current?.classList.add('custom-cursor__ring--hover');
       }
     }
 
     function handleMouseOut(event) {
-      if (event.target.closest(HOVER_SELECTOR)) {
+      if (
+        event.target instanceof Element &&
+        event.target.closest(HOVER_SELECTOR)
+      ) {
         ringRef.current?.classList.remove('custom-cursor__ring--hover');
       }
     }
@@ -90,4 +95,38 @@ export default function CustomCursor() {
     window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('mouseover', handleMouseOver);
     window.addEventListener('mouseout', handleMouseOut);
-    document.addEventListener('mouseleave',
+
+    document.addEventListener('mouseleave', handleLeaveWindow);
+    document.addEventListener('mouseenter', handleEnterWindow);
+
+    moveDot();
+
+    if (!prefersReducedMotion) {
+      animateRing();
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mouseover', handleMouseOver);
+      window.removeEventListener('mouseout', handleMouseOut);
+
+      document.removeEventListener('mouseleave', handleLeaveWindow);
+      document.removeEventListener('mouseenter', handleEnterWindow);
+
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
+
+      document.body.classList.remove('custom-cursor-active');
+    };
+  }, []);
+
+  return (
+    <>
+      <div ref={ringRef} className="custom-cursor__ring" />
+      <div ref={dotRef} className="custom-cursor__dot" />
+    </>
+  );
+}
