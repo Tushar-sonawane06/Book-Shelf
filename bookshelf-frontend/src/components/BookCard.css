@@ -138,3 +138,31 @@
   right: 10px;
   z-index: 10;
 }
+
+/* Compare toggle */
+.book-card__compare {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  opacity: 0.6;
+}
+
+.book-card__compare:hover {
+  opacity: 1;
+  border-color: var(--ink);
+}
+
+.book-card__compare--active {
+  opacity: 1;
+  background: var(--gold, #f59e0b);
+  border-color: var(--gold, #f59e0b);
+}
+
+.book-card__compare:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}

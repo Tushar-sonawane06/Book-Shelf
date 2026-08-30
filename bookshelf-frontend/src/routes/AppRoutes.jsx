@@ -20,6 +20,7 @@ import TermsOfService from '../pages/TermsOfService.jsx';
 import NotFound from '../pages/NotFound.jsx';
 import BookReviewsPage from '../pages/BookReviewsPage.jsx';
 import ReadingListPage from '../pages/ReadingListPage.jsx';
+import BookComparePage from '../pages/BookComparePage.jsx';
 
 /**
  * The single route table for the app.
@@ -130,6 +131,8 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        <Route path="compare" element={<BookComparePage />} />
 
         <Route path="*" element={<NotFound />} />
       </Route>
