@@ -13,6 +13,7 @@ import comparisonRoutes from './routes/comparisonRoutes.js';
 import readingGoalRoutes from './routes/readingGoalRoutes.js';
 import stockAlertRoutes from './routes/stockAlertRoutes.js';
 import priceAlertRoutes from './routes/priceAlertRoutes.js';
+import bookClubRoutes from './routes/bookClubRoutes.js';
 import stripeWebhookHandler from './webhook/stripeWebhook.js';
 import { configureTrustProxy } from './config/trustProxy.js';
 
@@ -47,6 +48,7 @@ app.use('/api/books/compare', comparisonRoutes);
 app.use('/api/reading-goals', readingGoalRoutes);
 app.use('/api/stock-alerts', stockAlertRoutes);
 app.use('/api/price-alerts', priceAlertRoutes);
+app.use('/api/book-clubs', bookClubRoutes);
 
 app.get('/', (req, res) => {
   res.send('API is running...');
