@@ -182,11 +182,23 @@ export default function Navbar({ searchQuery, setSearchQuery }) {
 
   const label = (key, fallback) => (key ? t(key) || fallback : fallback);
 
+  /*
+   * The admin link was shown to every signed-in user, which is the visible
+   * half of #420: the route behind it only checked for a session, so the
+   * navbar was not merely advertising a page customers could not use — it was
+   * advertising one they could open. The route is guarded now, and following
+   * this link as a customer would bounce them to the home page, which reads
+   * as a broken link. So it is only offered to the people it works for.
+   */
+  const isAdmin = user?.role === 'admin';
+
   const accountLinks = isAuthenticated
     ? [
         { to: '/profile', label: t('navbar.profile') || 'Profile' },
         { to: '/account/orders', label: 'My orders' },
-        { to: '/admin/inventory', label: '🛠️ Admin Inventory' },
+        ...(isAdmin
+          ? [{ to: '/admin/inventory', label: '🛠️ Admin Inventory' }]
+          : []),
         { to: '/design-system', label: '🎨 Design System' },
       ]
     : [{ to: '/design-system', label: '🎨 Design System' }];

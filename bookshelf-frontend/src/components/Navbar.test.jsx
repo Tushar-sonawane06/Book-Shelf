@@ -256,4 +256,66 @@ describe('Navbar', () => {
       expect(hamburger).toHaveAttribute('aria-expanded', 'true');
     });
   });
+
+  /*
+   * The visible half of #420.
+   *
+   * The account menu offered "🛠️ Admin Inventory" to every signed-in user,
+   * and the route behind it only checked for a session — so this was not a
+   * link that merely looked available to customers, it was one they could
+   * follow all the way into the inventory manager.
+   */
+  describe('the admin link', () => {
+    async function openAccountMenu(user) {
+      const trigger = screen.getByRole('button', { name: /toggle menu/i });
+      await user.click(trigger);
+    }
+
+    it('is offered to an admin', async () => {
+      const user = userEvent.setup();
+      renderNavbar({ auth: signedIn({ user: { name: 'Root', _id: 'u0', role: 'admin' } }) });
+
+      await openAccountMenu(user);
+
+      // The desktop and mobile menus both render the account links, so this
+      // is deliberately getAll — one match would mean one of them lost it.
+      expect(
+        screen.getAllByRole('link', { name: /admin inventory/i }).length
+      ).toBeGreaterThan(0);
+    });
+
+    it('is not offered to a signed-in customer', async () => {
+      const user = userEvent.setup();
+      renderNavbar({ auth: signedIn({ user: { name: 'Asha', _id: 'u1', role: 'user' } }) });
+
+      await openAccountMenu(user);
+
+      expect(
+        screen.queryByRole('link', { name: /admin inventory/i })
+      ).not.toBeInTheDocument();
+      // The rest of the account menu is untouched.
+      expect(screen.getAllByRole('link', { name: /my orders/i }).length).toBeGreaterThan(0);
+    });
+
+    it('is not offered to a user whose role is not known yet', async () => {
+      // A profile response that has not arrived, or an older session with no
+      // role on it. Absent is not admin.
+      const user = userEvent.setup();
+      renderNavbar({ auth: signedIn({ user: { name: 'Asha', _id: 'u1' } }) });
+
+      await openAccountMenu(user);
+
+      expect(
+        screen.queryByRole('link', { name: /admin inventory/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it('is not offered to an anonymous visitor', () => {
+      renderNavbar();
+
+      expect(
+        screen.queryByRole('link', { name: /admin inventory/i })
+      ).not.toBeInTheDocument();
+    });
+  });
 });

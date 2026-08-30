@@ -1,36 +1,21 @@
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth.js';
+import RouteGuard from './RouteGuard.jsx';
 
 /**
  * AdminRoute — a route guard that requires both authentication and the
- * admin role.  Wraps the same loading / redirect pattern as ProtectedRoute
- * but adds the role check.
+ * admin role.
  *
  * Usage:
  *   <Route path="admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+ *
+ * It was written, given its own test file, and then mounted on nothing:
+ * `/admin/inventory` — the page that creates, edits and deletes books — was
+ * guarded by a bare `<ProtectedRoute>`, which only checks that *somebody* is
+ * signed in, so any registered customer could open it. See #420.
+ *
+ * The guard itself lives in RouteGuard.jsx, which this and ProtectedRoute
+ * both wrap: they were the same component written twice, and only one of
+ * them had `aria-busy` on its loading state.
  */
 export default function AdminRoute({ children }) {
-  const { user, isAuthenticated, loading } = useAuth();
-  const location = useLocation();
-
-  if (loading) {
-    return (
-      <div
-        style={{ display: 'flex', justifyContent: 'center', padding: '50px' }}
-        aria-busy="true"
-      >
-        Loading…
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to={`/login?redirect=${location.pathname}`} replace />;
-  }
-
-  if (user?.role !== 'admin') {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
+  return <RouteGuard requireAdmin>{children}</RouteGuard>;
 }

@@ -1,29 +1,14 @@
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth.js';
+import RouteGuard from './RouteGuard.jsx';
 
-const ProtectedRoute = ({ children, requireAdmin = false }) => {
-  const { user, isAuthenticated, loading } = useAuth();
-  const location = useLocation();
-
-  if (loading) {
-    return (
-      <div
-        style={{ display: 'flex', justifyContent: 'center', padding: '50px' }}
-      >
-        Loading...
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to={`/login?redirect=${location.pathname}`} replace />;
-  }
-
-  if (requireAdmin && user?.role !== 'admin') {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-};
-
-export default ProtectedRoute;
+/**
+ * ProtectedRoute — requires a session, and optionally the admin role.
+ *
+ * `requireAdmin` is kept for the callers that pass it, but a route that needs
+ * an admin should use `<AdminRoute>` instead: the prop defaults to `false`,
+ * and forgetting it is silent. That is precisely how `/admin/inventory` came
+ * to be reachable by any signed-in customer — the route said
+ * `<ProtectedRoute>` and nobody noticed the missing prop. See #420.
+ */
+export default function ProtectedRoute({ children, requireAdmin = false }) {
+  return <RouteGuard requireAdmin={requireAdmin}>{children}</RouteGuard>;
+}
