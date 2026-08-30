@@ -10,6 +10,7 @@ import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
 import RecentlyViewed from './components/RecentlyViewed.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
+import CompareBar from './components/CompareBar.jsx';
 
 import './App.css';
 
@@ -89,6 +90,7 @@ export default function App() {
       <Footer />
 
       <CartDrawer />
+      <CompareBar />
     </div>
   );
 }
