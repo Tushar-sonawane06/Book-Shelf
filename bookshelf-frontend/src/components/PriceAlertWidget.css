@@ -1,0 +1,194 @@
+/* ── Price Alert Widget ──────────────────────────────────────────────────── */
+
+.price-alert-widget {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.price-alert-widget--logged-out,
+.price-alert-widget--loading {
+  text-align: center;
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+.price-alert-widget--logged-out p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+.price-alert-widget__spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #f59e0b;
+  border-radius: 50%;
+  animation: paw-spin 0.7s linear infinite;
+}
+
+@keyframes paw-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Heading */
+.price-alert-widget__heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #92400e;
+}
+
+/* Toast */
+.price-alert-widget__toast {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  margin-bottom: 0.5rem;
+  color: #065f46;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+/* Current price */
+.price-alert-widget__current {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: #78350f;
+}
+
+/* Active alert */
+.price-alert-widget__active {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.price-alert-widget__target {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #92400e;
+}
+
+.price-alert-widget__badge {
+  display: inline-flex;
+  align-self: flex-start;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+.price-alert-widget__badge--triggered {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* Form */
+.price-alert-widget__label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #78350f;
+  margin-bottom: 0.35rem;
+}
+
+.price-alert-widget__input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.price-alert-widget__input {
+  flex: 1;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #111827;
+  background: #ffffff;
+}
+
+.price-alert-widget__input:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+
+/* Buttons */
+.price-alert-widget__controls {
+  margin-top: 0.35rem;
+}
+
+.price-alert-widget__btn {
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+}
+
+.price-alert-widget__btn--create {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.price-alert-widget__btn--create:hover {
+  background: #d97706;
+}
+
+.price-alert-widget__btn--create:disabled {
+  background: #fcd34d;
+  cursor: not-allowed;
+}
+
+.price-alert-widget__btn--remove {
+  background: none;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+}
+
+.price-alert-widget__btn--remove:hover {
+  background: #fef2f2;
+}
+
+.price-alert-widget__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .price-alert-widget {
+    background: #1c1917;
+    border-color: #78350f;
+  }
+
+  .price-alert-widget--logged-out,
+  .price-alert-widget--loading {
+    background: #1f2937;
+    border-color: #374151;
+  }
+
+  .price-alert-widget__heading { color: #fbbf24; }
+  .price-alert-widget__current { color: #fde68a; }
+  .price-alert-widget__label { color: #fde68a; }
+  .price-alert-widget__target { color: #fde68a; }
+
+  .price-alert-widget__input {
+    background: #1f2937;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+
+  .price-alert-widget__toast {
+    background: #064e3b;
+    border-color: #047857;
+    color: #a7f3d0;
+  }
+}

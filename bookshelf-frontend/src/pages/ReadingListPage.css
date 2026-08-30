@@ -1,0 +1,242 @@
+/* ── Reading List Page ───────────────────────────────────────────────────── */
+
+.rl-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.rl-page--loading,
+.rl-page--error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.rl-page__spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: rlp-spin 0.7s linear infinite;
+}
+
+@keyframes rlp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Header */
+.rl-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rl-page__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.rl-page__catalog-link {
+  font-size: 0.85rem;
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.rl-page__catalog-link:hover {
+  text-decoration: underline;
+}
+
+/* Stats */
+.rl-page__stats {
+  display: flex;
+  gap: 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.rl-page__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 60px;
+}
+
+.rl-page__stat-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.rl-page__stat-label {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Tabs */
+.rl-page__tabs {
+  display: flex;
+  gap: 0.25rem;
+  background: #f3f4f6;
+  border-radius: 10px;
+  padding: 0.2rem;
+  margin-bottom: 1.5rem;
+}
+
+.rl-page__tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.rl-page__tab:hover {
+  color: #374151;
+}
+
+.rl-page__tab--active {
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+.rl-page__tab-count {
+  background: #e5e7eb;
+  color: #6b7280;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  min-width: 1.2rem;
+  text-align: center;
+}
+
+.rl-page__tab--active .rl-page__tab-count {
+  background: #6366f1;
+  color: #ffffff;
+}
+
+/* Empty */
+.rl-page__empty {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.rl-page__empty-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.rl-page__empty h2 {
+  margin: 0 0 0.5rem;
+  color: #111827;
+}
+
+.rl-page__empty p {
+  margin: 0 0 1.25rem;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.rl-page__browse-btn {
+  display: inline-block;
+  background: #6366f1;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.rl-page__browse-btn:hover {
+  background: #4f46e5;
+}
+
+/* Error */
+.rl-page--error h2 {
+  margin: 0;
+  color: #111827;
+}
+
+.rl-page--error p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.rl-page__retry-btn {
+  background: #6366f1;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rl-page__retry-btn:hover {
+  background: #4f46e5;
+}
+
+.rl-page__back-link {
+  font-size: 0.85rem;
+  color: #6366f1;
+  text-decoration: none;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .rl-page__title { color: #f9fafb; }
+
+  .rl-page__stats {
+    background: #1f2937;
+    border-color: #374151;
+  }
+
+  .rl-page__stat-value { color: #f3f4f6; }
+  .rl-page__stat-label { color: #6b7280; }
+
+  .rl-page__tabs { background: #1f2937; }
+  .rl-page__tab { color: #9ca3af; }
+  .rl-page__tab--active {
+    background: #374151;
+    color: #f9fafb;
+  }
+  .rl-page__tab-count { background: #374151; color: #9ca3af; }
+  .rl-page__tab--active .rl-page__tab-count { background: #6366f1; }
+
+  .rl-page__empty h2 { color: #f9fafb; }
+  .rl-page__empty p { color: #9ca3af; }
+}

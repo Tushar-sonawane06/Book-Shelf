@@ -1,0 +1,61 @@
+*,
+*::before,
+*::after{box-sizing:border-box}
+
+.book-mood-selector{
+  width:100%;max-width:620px;padding:22px;border:1px solid #e5e7eb;
+  border-radius:20px;background:#fff;color:#111827;
+  box-shadow:0 8px 24px rgba(0,0,0,.08);
+  transition:transform .25s ease,box-shadow .25s ease;
+}
+.book-mood-selector:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(0,0,0,.12)}
+.book-mood-selector__header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}
+.book-mood-selector__eyebrow{margin:0 0 5px;color:#9ca3af;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.book-mood-selector__title{margin:0;font-size:19px;line-height:1.3}
+.book-mood-selector__subtitle{max-width:480px;margin:5px 0 0;color:#6b7280;font-size:12px;line-height:1.5}
+.book-mood-selector__selected{flex-shrink:0;padding:6px 10px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:800}
+.book-mood-selector__options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.book-mood-selector__option{
+  position:relative;display:flex;align-items:center;gap:9px;min-height:54px;padding:10px 12px;
+  border:1px solid #e5e7eb;border-radius:13px;background:#fff;color:#374151;
+  font:600 12px/1.2 inherit;text-align:left;cursor:pointer;
+  transition:transform .2s ease,border-color .2s ease,background-color .2s ease,box-shadow .2s ease;
+}
+.book-mood-selector__option:hover{transform:translateY(-2px);border-color:#93c5fd;background:#f8fbff;box-shadow:0 5px 12px rgba(0,0,0,.06)}
+.book-mood-selector__option--selected{border-color:#2563eb;background:#eff6ff;color:#1d4ed8;box-shadow:0 0 0 2px rgba(37,99,235,.08)}
+.book-mood-selector__emoji{display:flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border-radius:10px;background:#f9fafb;font-size:20px}
+.book-mood-selector__option--selected .book-mood-selector__emoji{background:#fff}
+.book-mood-selector__label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.book-mood-selector__check{margin-left:auto;color:#2563eb;font-size:13px;font-weight:900}
+.book-mood-selector__option:focus-visible{outline:3px solid rgba(37,99,235,.3);outline-offset:3px}
+
+.book-mood-selector--list .book-mood-selector__options{grid-template-columns:1fr}
+.book-mood-selector--compact{padding:17px}
+.book-mood-selector--compact .book-mood-selector__subtitle{display:none}
+.book-mood-selector--compact .book-mood-selector__option{min-height:44px;padding:7px 9px}
+
+.book-mood-selector--green .book-mood-selector__selected{background:#ecfdf5;color:#15803d}
+.book-mood-selector--green .book-mood-selector__option--selected{border-color:#16a34a;background:#f0fdf4;color:#15803d}
+.book-mood-selector--purple .book-mood-selector__selected{background:#faf5ff;color:#6d28d9}
+.book-mood-selector--purple .book-mood-selector__option--selected{border-color:#7c3aed;background:#faf5ff;color:#6d28d9}
+.book-mood-selector--orange .book-mood-selector__selected{background:#fff7ed;color:#c2410c}
+.book-mood-selector--orange .book-mood-selector__option--selected{border-color:#f97316;background:#fff7ed;color:#c2410c}
+.book-mood-selector--pink .book-mood-selector__selected{background:#fdf2f8;color:#be185d}
+.book-mood-selector--pink .book-mood-selector__option--selected{border-color:#db2777;background:#fdf2f8;color:#be185d}
+
+.book-mood-selector--dark{border-color:#374151;background:#1f2937;color:#f9fafb}
+.book-mood-selector--dark .book-mood-selector__title{color:#f9fafb}
+.book-mood-selector--dark .book-mood-selector__subtitle{color:#9ca3af}
+.book-mood-selector--dark .book-mood-selector__option{border-color:#374151;background:#111827;color:#d1d5db}
+.book-mood-selector--dark .book-mood-selector__option--selected{border-color:#60a5fa;background:#172554;color:#bfdbfe}
+
+@media(max-width:600px){
+  .book-mood-selector{max-width:100%;padding:18px}
+  .book-mood-selector__header{flex-direction:column}
+  .book-mood-selector__options{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:380px){.book-mood-selector__options{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){
+  .book-mood-selector,.book-mood-selector__option{transition:none}
+  .book-mood-selector:hover,.book-mood-selector__option:hover{transform:none}
+}

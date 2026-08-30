@@ -1,0 +1,207 @@
+/* ── Bookshelf Widget ────────────────────────────────────────────────────── */
+
+.bookshelf-widget {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.bookshelf-widget--logged-out {
+  text-align: center;
+}
+
+.bookshelf-widget--logged-out p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+/* Toast */
+.bookshelf-widget__toast {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  color: #065f46;
+  font-size: 0.82rem;
+  font-weight: 500;
+  animation: bsw-fade 0.25s ease;
+}
+
+@keyframes bsw-fade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Shelf buttons */
+.bookshelf-widget__shelves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.bookshelf-widget__shelf-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.bookshelf-widget__shelf-btn:hover {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+}
+
+.bookshelf-widget__shelf-btn--active {
+  font-weight: 700;
+  color: #111827;
+}
+
+.bookshelf-widget__shelf-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Expand */
+.bookshelf-widget__expand-btn {
+  background: none;
+  border: none;
+  color: #6366f1;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.4rem 0;
+  margin-top: 0.5rem;
+}
+
+.bookshelf-widget__expand-btn:hover {
+  text-decoration: underline;
+}
+
+/* Details */
+.bookshelf-widget__details {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Progress slider */
+.bookshelf-widget__progress label {
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.bookshelf-widget__slider {
+  width: 100%;
+  margin-top: 0.35rem;
+  accent-color: var(--progress-color, #6366f1);
+  cursor: pointer;
+}
+
+/* Notes */
+.bookshelf-widget__notes label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.25rem;
+}
+
+.bookshelf-widget__notes textarea {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #111827;
+  background: #ffffff;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.bookshelf-widget__notes textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* Remove */
+.bookshelf-widget__remove-btn {
+  background: none;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  align-self: flex-start;
+}
+
+.bookshelf-widget__remove-btn:hover {
+  background: #fef2f2;
+}
+
+.bookshelf-widget__remove-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .bookshelf-widget {
+    background: #1f2937;
+    border-color: #374151;
+  }
+
+  .bookshelf-widget__shelf-btn {
+    background: #111827;
+    border-color: #4b5563;
+    color: #d1d5db;
+  }
+
+  .bookshelf-widget__shelf-btn:hover {
+    background: #374151;
+  }
+
+  .bookshelf-widget__shelf-btn--active {
+    color: #f9fafb;
+  }
+
+  .bookshelf-widget__details {
+    border-top-color: #374151;
+  }
+
+  .bookshelf-widget__progress label,
+  .bookshelf-widget__notes label {
+    color: #d1d5db;
+  }
+
+  .bookshelf-widget__notes textarea {
+    background: #111827;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+
+  .bookshelf-widget__toast {
+    background: #064e3b;
+    border-color: #047857;
+    color: #a7f3d0;
+  }
+}
