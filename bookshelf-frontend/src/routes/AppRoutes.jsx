@@ -18,6 +18,7 @@ import AboutUs from '../pages/AboutUs.jsx';
 import PrivacyPolicy from '../pages/PrivacyPolicy.jsx';
 import TermsOfService from '../pages/TermsOfService.jsx';
 import NotFound from '../pages/NotFound.jsx';
+import BookReviews from '../pages/BookReviews.jsx';
 
 /**
  * The single route table for the app.
@@ -50,6 +51,7 @@ export default function AppRoutes() {
         {/* Public */}
         <Route index element={<Home />} />
         <Route path="book/:id" element={<BookDetail />} />
+        <Route path="book/:id/reviews" element={<BookReviews />} />
         <Route path="wishlist" element={<WishlistPage />} />
         <Route path="about" element={<AboutUs />} />
         <Route path="privacy" element={<PrivacyPolicy />} />
