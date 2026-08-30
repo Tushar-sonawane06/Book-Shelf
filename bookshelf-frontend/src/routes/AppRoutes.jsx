@@ -28,6 +28,7 @@ import ReadingListPage from '../pages/ReadingListPage.jsx';
 import BookComparePage from '../pages/BookComparePage.jsx';
 import ReadingGoalPage from '../pages/ReadingGoalPage.jsx';
 import StockAlertsPage from '../pages/StockAlertsPage.jsx';
+import PriceAlertsPage from '../pages/PriceAlertsPage.jsx';
 
 /**
  * The single route table for the app.
@@ -180,6 +181,15 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute>
               <ReadingListPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="price-alerts"
+          element={
+            <ProtectedRoute>
+              <PriceAlertsPage />
             </ProtectedRoute>
           }
         />
