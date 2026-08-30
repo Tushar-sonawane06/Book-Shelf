@@ -1,0 +1,343 @@
+/* ── Price Alerts Page ───────────────────────────────────────────────────── */
+
+.pa-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+/* Header */
+.pa-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pa-page__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.pa-page__browse-link {
+  font-size: 0.85rem;
+  color: #f59e0b;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.pa-page__browse-link:hover {
+  text-decoration: underline;
+}
+
+/* Toast */
+.pa-page__toast {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  margin-bottom: 1rem;
+  color: #065f46;
+  font-size: 0.88rem;
+  font-weight: 500;
+  animation: pap-fade 0.25s ease;
+}
+
+@keyframes pap-fade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Tabs */
+.pa-page__tabs {
+  display: flex;
+  gap: 0.25rem;
+  background: #f3f4f6;
+  border-radius: 10px;
+  padding: 0.2rem;
+  margin-bottom: 1.5rem;
+}
+
+.pa-page__tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.pa-page__tab:hover { color: #374151; }
+
+.pa-page__tab--active {
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+.pa-page__tab-count {
+  background: #e5e7eb;
+  color: #6b7280;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  min-width: 1.2rem;
+  text-align: center;
+}
+
+.pa-page__tab--active .pa-page__tab-count {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+/* Loading */
+.pa-page__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 0;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.pa-page__spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #f59e0b;
+  border-radius: 50%;
+  animation: pap-spin 0.7s linear infinite;
+}
+
+@keyframes pap-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error */
+.pa-page__error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #991b1b;
+  font-size: 0.9rem;
+}
+
+.pa-page__error button {
+  background: #991b1b;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+/* Empty states */
+.pa-page__empty,
+.pa-page__empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.pa-page__empty h2 {
+  margin: 0 0 0.5rem;
+  color: #111827;
+}
+
+.pa-page__empty p,
+.pa-page__empty-state p {
+  margin: 0 0 1rem;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.pa-page__login-btn {
+  display: inline-block;
+  background: #f59e0b;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 0.55rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pa-page__login-btn:hover { background: #d97706; }
+
+.pa-page__empty-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* Alert list */
+.pa-page__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Card */
+.pa-page__card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  transition: box-shadow 0.2s ease;
+}
+
+.pa-page__card:hover {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.pa-page__card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pa-page__card-book-link {
+  font-weight: 700;
+  color: #111827;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.pa-page__card-book-link:hover {
+  color: #f59e0b;
+}
+
+.pa-page__card-prices {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.pa-page__card-original {
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+
+.pa-page__card-current {
+  color: #374151;
+  font-weight: 600;
+}
+
+.pa-page__card-drop {
+  color: #059669;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-left: 0.25rem;
+}
+
+.pa-page__card-target {
+  font-size: 0.82rem;
+  color: #92400e;
+}
+
+.pa-page__card-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  margin-top: 0.25rem;
+}
+
+/* Card actions */
+.pa-page__card-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.pa-page__action-btn {
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.pa-page__action-btn--pause {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.pa-page__action-btn--pause:hover { background: #fde68a; }
+
+.pa-page__action-btn--resume {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.pa-page__action-btn--resume:hover { background: #d1fae5; }
+
+.pa-page__action-btn--delete {
+  background: none;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.pa-page__action-btn--delete:hover { background: #fef2f2; }
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .pa-page__title { color: #f9fafb; }
+
+  .pa-page__tabs { background: #1f2937; }
+  .pa-page__tab { color: #9ca3af; }
+  .pa-page__tab--active { background: #374151; color: #f9fafb; }
+  .pa-page__tab-count { background: #374151; color: #9ca3af; }
+  .pa-page__tab--active .pa-page__tab-count { background: #f59e0b; }
+
+  .pa-page__card {
+    background: #1f2937;
+    border-color: #374151;
+  }
+
+  .pa-page__card-book-link { color: #f3f4f6; }
+  .pa-page__card-current { color: #d1d5db; }
+  .pa-page__card-target { color: #fde68a; }
+
+  .pa-page__toast {
+    background: #064e3b;
+    border-color: #047857;
+    color: #a7f3d0;
+  }
+
+  .pa-page__empty h2 { color: #f9fafb; }
+}

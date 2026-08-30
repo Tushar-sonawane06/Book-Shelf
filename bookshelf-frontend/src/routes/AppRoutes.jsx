@@ -18,6 +18,7 @@ import AboutUs from '../pages/AboutUs.jsx';
 import PrivacyPolicy from '../pages/PrivacyPolicy.jsx';
 import TermsOfService from '../pages/TermsOfService.jsx';
 import NotFound from '../pages/NotFound.jsx';
+import PriceAlertsPage from '../pages/PriceAlertsPage.jsx';
 
 /**
  * The single route table for the app.
@@ -114,6 +115,15 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute>
               <OrderDetailsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="price-alerts"
+          element={
+            <ProtectedRoute>
+              <PriceAlertsPage />
             </ProtectedRoute>
           }
         />
