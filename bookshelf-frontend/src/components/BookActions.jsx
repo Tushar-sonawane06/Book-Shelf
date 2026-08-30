@@ -14,7 +14,7 @@ export default function BookActions({
         onClick={() => onAddToCart(book)}
         aria-label="Add to Cart"
       >
-        🛒 <span>Add to Cart</span>
+        🛒 <span>Quick Cart</span>
       </button>
 
       <button

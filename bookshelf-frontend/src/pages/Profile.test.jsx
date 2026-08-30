@@ -63,9 +63,9 @@ describe('Profile Page (Reading Portal)', () => {
 
     expect(screen.getByText('Jane Reader')).toBeInTheDocument();
     expect(screen.getByText('jane@example.com')).toBeInTheDocument();
-    expect(screen.getByText('Books Read')).toBeInTheDocument();
-    expect(screen.getByText('Pages Read')).toBeInTheDocument();
-    expect(screen.getByText('Reading Hours')).toBeInTheDocument();
+    expect(screen.getAllByText('Books Read')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Pages Read')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Reading Hours')[0]).toBeInTheDocument();
   });
 
   it('allows switching between tabs', async () => {

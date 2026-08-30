@@ -1,0 +1,104 @@
+/* ── Coupon Input ───────────────────────────────────────────────────── */
+
+.coupon-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.coupon-input__field {
+  flex: 1;
+  min-width: 120px;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-family: monospace;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.coupon-input__field--error {
+  border-color: var(--color-error, #dc2626);
+}
+
+.coupon-input__apply {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--color-primary, #6366f1);
+  border-radius: 8px;
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.coupon-input__apply:hover:not(:disabled) {
+  background: var(--color-primary-hover, #4f46e5);
+}
+
+.coupon-input__apply:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.coupon-input__error {
+  width: 100%;
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-error, #dc2626);
+}
+
+/* Applied state */
+
+.coupon-input--applied {
+  background: var(--color-badge-success-bg, #ecfdf5);
+  border: 1px solid var(--color-badge-success-border, #a7f3d0);
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+}
+
+.coupon-input__badge {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-badge-success-text, #065f46);
+}
+
+.coupon-input__savings {
+  font-weight: 400;
+}
+
+.coupon-input__remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--color-badge-success-text, #065f46);
+  padding: 0.1rem 0.3rem;
+}
+
+.coupon-input__remove:hover {
+  color: var(--color-error, #dc2626);
+}
+
+/* ── Dark mode ──────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .coupon-input__field {
+    background: var(--color-surface-dark, #1f2937);
+    border-color: var(--color-border-dark, #4b5563);
+    color: var(--color-text-dark, #f9fafb);
+  }
+
+  .coupon-input--applied {
+    background: var(--color-badge-success-bg-dark, #064e3b);
+    border-color: var(--color-badge-success-border-dark, #065f46);
+  }
+
+  .coupon-input__badge {
+    color: var(--color-badge-success-text-dark, #a7f3d0);
+  }
+}
