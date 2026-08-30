@@ -21,6 +21,7 @@ import NotFound from '../pages/NotFound.jsx';
 import BookReviewsPage from '../pages/BookReviewsPage.jsx';
 import ReadingListPage from '../pages/ReadingListPage.jsx';
 import BookComparePage from '../pages/BookComparePage.jsx';
+import ReadingGoalPage from '../pages/ReadingGoalPage.jsx';
 
 /**
  * The single route table for the app.
@@ -128,6 +129,15 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute>
               <ReadingListPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="reading-goals"
+          element={
+            <ProtectedRoute>
+              <ReadingGoalPage />
             </ProtectedRoute>
           }
         />
