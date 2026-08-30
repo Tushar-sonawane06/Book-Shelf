@@ -27,6 +27,13 @@ vi.mock('../services/paymentService.js', () => ({
   },
 }));
 
+const validateCoupon = vi.fn();
+
+vi.mock('../services/couponService.js', () => ({
+  validateCoupon: (...args) => validateCoupon(...args),
+  default: { validateCoupon: (...args) => validateCoupon(...args) },
+}));
+
 const CART = [
   { id: 'b1', title: 'The Quiet Ones', price: 349, quantity: 2, cover: '#7A2E2E' },
   { id: 'b3', title: 'Half Moon Bay', price: 399, quantity: 1, cover: '#B85C2C' },
@@ -88,6 +95,7 @@ describe('Checkout', () => {
   beforeEach(async () => {
     window.localStorage.clear();
     createPaymentIntent.mockReset();
+    validateCoupon.mockReset();
     await loadCheckout();
   });
 
@@ -306,5 +314,179 @@ describe('Checkout', () => {
       expect(screen.getByRole('heading', { name: /shipping address/i })).toBeInTheDocument()
     );
     expect(errors.join('\n')).not.toMatch(/Rendered more hooks/);
+  });
+
+  /*
+   * Coupons.
+   *
+   * The bug (#418): applying a coupon changed the summary and nothing else.
+   * The code never reached `create-intent`, so the payment intent was created
+   * for the undiscounted total — the page showed a saving the customer was
+   * not given. These tests pin the two halves that make that impossible to
+   * reintroduce: the code has to travel with the request, and the discount
+   * row has to be rendered from the response rather than from the preview.
+   */
+  describe('coupons', () => {
+    const APPLIED = {
+      clientSecret: 'cs_test_123',
+      orderId: 'order-1',
+      currency: 'INR',
+      amount: {
+        currency: 'INR',
+        subtotal: 1097,
+        discount: 100,
+        tax: 49.85,
+        shipping: 49,
+        total: 1095.85,
+      },
+      coupon: { code: 'SAVE100', discount: 100 },
+    };
+
+    async function applyCoupon(user, code = 'SAVE100') {
+      validateCoupon.mockResolvedValue({
+        valid: true,
+        code,
+        discountType: 'fixed',
+        discountValue: 100,
+        discount: 100,
+        currency: 'INR',
+      });
+
+      await user.type(screen.getByPlaceholderText(/have a coupon code/i), code);
+      await user.click(screen.getByRole('button', { name: /^apply$/i }));
+      await screen.findByText(new RegExp(code));
+    }
+
+    it('sends the coupon code to the payment API, and nothing else about it', async () => {
+      const user = userEvent.setup();
+      createPaymentIntent.mockResolvedValue(APPLIED);
+
+      renderCheckout();
+      await applyCoupon(user);
+      await fillAddress(user);
+      await user.click(screen.getByRole('button', { name: /continue to payment/i }));
+
+      await waitFor(() => expect(createPaymentIntent).toHaveBeenCalledTimes(1));
+
+      const payload = createPaymentIntent.mock.calls[0][0];
+      expect(payload.couponCode).toBe('SAVE100');
+
+      /*
+       * The client states the code and nothing more. A discount or a subtotal
+       * in this payload would be a price the customer had chosen for
+       * themselves — the server recomputes both from the catalogue.
+       */
+      expect(payload).not.toHaveProperty('discount');
+      expect(payload).not.toHaveProperty('subtotal');
+      expect(payload).not.toHaveProperty('total');
+    });
+
+    it('omits the coupon field entirely when no code was applied', async () => {
+      const user = userEvent.setup();
+      createPaymentIntent.mockResolvedValue({
+        clientSecret: 'cs_test_123',
+        orderId: 'order-1',
+        currency: 'INR',
+        amount: { currency: 'INR', subtotal: 1097, discount: 0, tax: 54.85, shipping: 49, total: 1200.85 },
+        coupon: null,
+      });
+
+      renderCheckout();
+      await fillAddress(user);
+      await user.click(screen.getByRole('button', { name: /continue to payment/i }));
+
+      await waitFor(() => expect(createPaymentIntent).toHaveBeenCalledTimes(1));
+      expect(createPaymentIntent.mock.calls[0][0].couponCode).toBeUndefined();
+    });
+
+    it('renders the discount the server applied, and a total that accounts for it', async () => {
+      const user = userEvent.setup();
+      createPaymentIntent.mockResolvedValue(APPLIED);
+
+      renderCheckout();
+      await applyCoupon(user);
+      await fillAddress(user);
+      await user.click(screen.getByRole('button', { name: /continue to payment/i }));
+
+      const discountRow = await screen.findByText(/discount \(SAVE100\)/i);
+      expect(discountRow).toBeInTheDocument();
+
+      // The saving and the total both come from the same response, so they
+      // cannot disagree. 1097 − 100 + 49.85 + 49 = 1095.85.
+      expect(screen.getByText('−₹100.00')).toBeInTheDocument();
+      expect(screen.getByText('₹1,095.85')).toBeInTheDocument();
+    });
+
+    it('shows no discount row when the server applied nothing', async () => {
+      const user = userEvent.setup();
+      createPaymentIntent.mockResolvedValue({
+        ...APPLIED,
+        amount: { ...APPLIED.amount, discount: 0, tax: 54.85, total: 1200.85 },
+        coupon: null,
+      });
+
+      renderCheckout();
+      await fillAddress(user);
+      await user.click(screen.getByRole('button', { name: /continue to payment/i }));
+
+      await screen.findByText('₹1,200.85');
+      expect(screen.queryByText(/^Discount/i)).not.toBeInTheDocument();
+    });
+
+    it('explains a coupon the server refused instead of dropping it silently', async () => {
+      const user = userEvent.setup();
+
+      /*
+       * The race this covers: the code validated when the customer typed it,
+       * and hit its usage limit while they filled in the address. The order
+       * is still valid and still payable, so it is priced without the coupon
+       * — but the page has to account for the discount that is no longer
+       * there.
+       */
+      createPaymentIntent.mockResolvedValue({
+        ...APPLIED,
+        amount: { ...APPLIED.amount, discount: 0, tax: 54.85, total: 1200.85 },
+        coupon: null,
+        couponError: {
+          reason: 'limit_reached',
+          message: 'This coupon has reached its usage limit',
+        },
+      });
+
+      renderCheckout();
+      await applyCoupon(user);
+      await fillAddress(user);
+      await user.click(screen.getByRole('button', { name: /continue to payment/i }));
+
+      const notice = await screen.findByRole('status');
+      expect(notice).toHaveTextContent(/reached its usage limit/i);
+      expect(notice).toHaveTextContent(/priced without it/i);
+
+      // Priced without it, and the summary says so rather than showing a row.
+      expect(screen.queryByText(/^Discount/i)).not.toBeInTheDocument();
+      expect(screen.getByText('₹1,200.85')).toBeInTheDocument();
+    });
+
+    it('does not block the checkout when the coupon preview fails', async () => {
+      const user = userEvent.setup();
+      validateCoupon.mockRejectedValue(new Error('Invalid coupon code'));
+      createPaymentIntent.mockResolvedValue({
+        ...APPLIED,
+        amount: { ...APPLIED.amount, discount: 0, tax: 54.85, total: 1200.85 },
+        coupon: null,
+      });
+
+      renderCheckout();
+      await user.type(screen.getByPlaceholderText(/have a coupon code/i), 'NOPE');
+      await user.click(screen.getByRole('button', { name: /^apply$/i }));
+      await screen.findByText(/invalid coupon code/i);
+
+      await fillAddress(user);
+      await user.click(screen.getByRole('button', { name: /continue to payment/i }));
+
+      await waitFor(() => expect(createPaymentIntent).toHaveBeenCalledTimes(1));
+      // A code that never applied is not sent.
+      expect(createPaymentIntent.mock.calls[0][0].couponCode).toBeUndefined();
+    });
   });
 });

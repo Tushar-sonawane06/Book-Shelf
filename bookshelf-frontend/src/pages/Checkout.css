@@ -584,3 +584,53 @@
   outline-offset: 3px;
   border-radius: 2px;
 }
+
+/*
+ * The discount row.
+ *
+ * It renders only when the server actually applied a coupon, so its presence
+ * is itself information: a row here means the total below is lower because of
+ * it. Green, and the only green in the summary, so the eye lands on the one
+ * line that reduces the bill. See #418.
+ */
+.checkout__total-row--discount dt {
+  color: var(--ink-soft, #5a5147);
+}
+
+.checkout__discount {
+  color: #0f7b4f;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Said when a code was accepted at preview time and refused at payment time —
+ * expired, deactivated, or out of uses in between. The order is still priced
+ * and still payable, so this is a notice rather than an error: it explains a
+ * missing discount row, it does not report a failure.
+ */
+.checkout__coupon-notice {
+  margin: 0.5rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid #e5c98a;
+  background: #fdf6e6;
+  color: #7a5a12;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+@media (prefers-color-scheme: dark) {
+  .checkout__discount {
+    color: #4ade80;
+  }
+}
+
+[data-theme='dark'] .checkout__discount {
+  color: #4ade80;
+}
+
+[data-theme='dark'] .checkout__coupon-notice {
+  border-color: #6b5520;
+  background: #2c2412;
+  color: #e8cf94;
+}

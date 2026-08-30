@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { validateCoupon } from '../services/couponService.js';
+import { formatMoney } from '../utils/currency.js';
 import './CouponInput.css';
 
 /**
@@ -8,11 +9,25 @@ import './CouponInput.css';
  *
  * Props:
  *   subtotal   the current cart subtotal (for min-order checks)
+ *   currency   the currency the shop is pricing in, once known
  *   onApply    callback({ code, discount, discountType }) when valid
  *   onRemove   callback() when the user clears an applied coupon
  *   disabled   disable the input (e.g. while payment is processing)
+ *
+ * What this component reports is a *preview*. The saving in the badge is what
+ * the server says the code is worth against the cart the browser knows about;
+ * the amount actually taken off is recomputed server-side when the payment
+ * intent is created, and rendered by the checkout summary from that response.
+ * The two agree, but only one of them is binding, and it is not this one.
+ * See #418.
  */
-export default function CouponInput({ subtotal = 0, onApply, onRemove, disabled = false }) {
+export default function CouponInput({
+  subtotal = 0,
+  currency,
+  onApply,
+  onRemove,
+  disabled = false,
+}) {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -58,9 +73,11 @@ export default function CouponInput({ subtotal = 0, onApply, onRemove, disabled 
         <span className="coupon-input__badge">
           🏷️ {applied.code} — {applied.discountType === 'percentage'
             ? `${applied.discountValue}% off`
-            : `₹${applied.discountValue} off`}
+            : `${formatMoney(applied.discountValue, { currency: applied.currency ?? currency })} off`}
           {applied.discount > 0 && (
-            <span className="coupon-input__savings"> (−₹{applied.discount})</span>
+            <span className="coupon-input__savings">
+              {' '}(−{formatMoney(applied.discount, { currency: applied.currency ?? currency })})
+            </span>
           )}
         </span>
         <button

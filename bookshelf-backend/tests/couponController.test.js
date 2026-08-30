@@ -1,26 +1,30 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { evaluateCoupon } from '../utils/coupon.js';
+import { toMajorUnits, toMinorUnits } from '../utils/money.js';
+
 /**
- * Unit tests for coupon validation logic.
+ * Coupon validation, as the controller performs it.
  *
- * Exercises the discount computation extracted from couponController.js.
+ * This file used to define its own `computeDiscount` at the top and test
+ * that. The copy and the shipped controller then drifted — and because the
+ * copy was the only thing under test, the suite stayed green while
+ * `validateCoupon` computed a discount that nothing ever charged. See #418.
+ *
+ * The helper below now calls the real `evaluateCoupon`, the same function the
+ * controller and `createIntent` both use, and converts at the boundary so
+ * these cases can keep speaking in whole rupees.
+ *
+ * The deeper coverage — rounding, cap ordering, how the discount lands in the
+ * total — is in tests/coupon.test.js.
  */
-
 function computeDiscount(coupon, subtotal) {
-  if (!coupon.active) return { valid: false, reason: 'inactive' };
-  if (coupon.expiresAt && coupon.expiresAt < new Date()) return { valid: false, reason: 'expired' };
-  if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) return { valid: false, reason: 'limit' };
-  if (subtotal < coupon.minOrderAmount) return { valid: false, reason: 'min_order' };
+  const outcome = evaluateCoupon(coupon, toMinorUnits(subtotal));
 
-  let discount = coupon.discountType === 'percentage'
-    ? Math.round((subtotal * coupon.discountValue) / 100 * 100) / 100
-    : coupon.discountValue;
-
-  if (coupon.maxDiscount > 0) discount = Math.min(discount, coupon.maxDiscount);
-  discount = Math.min(discount, subtotal);
-
-  return { valid: true, discount };
+  return outcome.ok
+    ? { valid: true, discount: toMajorUnits(outcome.discountMinor) }
+    : { valid: false, reason: outcome.reason };
 }
 
 describe('computeDiscount', () => {
@@ -65,5 +69,19 @@ describe('computeDiscount', () => {
   it('rejects when subtotal below minimum', () => {
     const result = computeDiscount({ active: true, discountType: 'fixed', discountValue: 10, minOrderAmount: 200, maxDiscount: 0, maxUses: 0, usedCount: 0 }, 100);
     assert.strictEqual(result.valid, false);
+  });
+
+  it('reports a machine-readable reason, not just a boolean', () => {
+    // The checkout needs to tell "you mistyped it" from "it ran out while you
+    // were filling in your address", which reads the same to a customer and
+    // means something different.
+    assert.strictEqual(
+      computeDiscount({ active: false, discountType: 'fixed', discountValue: 10, minOrderAmount: 0, maxDiscount: 0, maxUses: 0, usedCount: 0 }, 100).reason,
+      'inactive'
+    );
+    assert.strictEqual(
+      computeDiscount({ active: true, discountType: 'fixed', discountValue: 10, minOrderAmount: 200, maxDiscount: 0, maxUses: 0, usedCount: 0 }, 100).reason,
+      'below_minimum'
+    );
   });
 });

@@ -37,6 +37,17 @@ const orderSchema = new mongoose.Schema(
       default: 'INR',
     },
     subtotal: { type: Number, required: true },
+    /*
+     * What a coupon took off, and which coupon did it.
+     *
+     * Recorded on the order rather than recomputed from the code at render
+     * time, for the same reason `currency` is: the coupon can later be edited
+     * or deactivated, and the order must keep saying what was actually
+     * charged. Defaulted rather than `required` so orders written before #418
+     * still load.
+     */
+    discount: { type: Number, required: true, default: 0, min: 0 },
+    couponCode: { type: String, uppercase: true, trim: true, default: '' },
     tax: { type: Number, required: true, default: 0 },
     shipping: { type: Number, required: true, default: 0 },
     total: { type: Number, required: true },

@@ -1,37 +1,62 @@
 import Coupon from '../models/Coupon.js';
+import {
+  COUPON_REJECTION,
+  MAX_COUPON_CODE_LENGTH,
+  evaluateCoupon,
+  normaliseCouponCode,
+} from '../utils/coupon.js';
+import { toMajorUnits, toMinorUnits } from '../utils/money.js';
+import { formatAmount, getCurrencyConfig } from '../config/currency.js';
 
-// ── Public: validate a coupon code and return the discount ──────────────────
-
+/**
+ * @desc    Preview what a coupon is worth against a cart
+ * @route   POST /api/coupons/validate
+ * @access  Public
+ *
+ * A *preview*, and only a preview. It answers the checkout page's question
+ * "is this code any good, and roughly what will it save me" so the customer
+ * gets an answer while typing rather than after submitting.
+ *
+ * It does not decide what anyone is charged. The subtotal in the body comes
+ * from the client and cannot be trusted with a price, so the binding
+ * calculation happens again inside `createIntent` against the server's own
+ * priced cart. The two agree because both call `evaluateCoupon`, which is why
+ * that lives in utils/coupon.js rather than here. See #418.
+ */
 export const validateCoupon = async (req, res, next) => {
   try {
-    const code = String(req.body.code || '').trim().toUpperCase();
+    const code = normaliseCouponCode(req.body?.code);
     if (!code) return res.status(400).json({ message: 'Coupon code is required' });
 
+    if (code.length > MAX_COUPON_CODE_LENGTH) {
+      // `Coupon.code` is capped at 30, so a longer string cannot match a
+      // document. The route is unauthenticated; no reason to ask the database.
+      return res.status(404).json({ message: 'Invalid coupon code' });
+    }
+
     const coupon = await Coupon.findOne({ code });
-    if (!coupon) return res.status(404).json({ message: 'Invalid coupon code' });
-    if (!coupon.active) return res.status(400).json({ message: 'This coupon is no longer active' });
-    if (coupon.expiresAt && coupon.expiresAt < new Date()) {
-      return res.status(400).json({ message: 'This coupon has expired' });
-    }
-    if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) {
-      return res.status(400).json({ message: 'This coupon has reached its usage limit' });
-    }
 
-    const subtotal = Number(req.body.subtotal) || 0;
-    if (subtotal < coupon.minOrderAmount) {
-      return res.status(400).json({
-        message: `Minimum order amount of ₹${coupon.minOrderAmount} required`,
-      });
-    }
+    const currency = getCurrencyConfig();
+    const subtotal = Number(req.body?.subtotal);
+    const subtotalMinor = toMinorUnits(
+      Number.isFinite(subtotal) && subtotal > 0 ? subtotal : 0
+    );
 
-    let discount = coupon.discountType === 'percentage'
-      ? Math.round((subtotal * coupon.discountValue) / 100 * 100) / 100
-      : coupon.discountValue;
+    const outcome = evaluateCoupon(coupon, subtotalMinor);
 
-    if (coupon.maxDiscount > 0) {
-      discount = Math.min(discount, coupon.maxDiscount);
+    if (!outcome.ok) {
+      const status = outcome.reason === COUPON_REJECTION.NOT_FOUND ? 404 : 400;
+
+      // The minimum-order sentence is assembled here rather than in
+      // utils/coupon.js, which has no business knowing the shop's currency.
+      // It used to hardcode a `₹`, which was wrong for a USD deployment.
+      const message =
+        outcome.reason === COUPON_REJECTION.BELOW_MINIMUM
+          ? `Minimum order amount of ${formatAmount(outcome.minOrderAmount, currency)} required`
+          : outcome.message;
+
+      return res.status(status).json({ message, reason: outcome.reason });
     }
-    discount = Math.min(discount, subtotal);
 
     res.json({
       valid: true,
@@ -39,19 +64,39 @@ export const validateCoupon = async (req, res, next) => {
       description: coupon.description,
       discountType: coupon.discountType,
       discountValue: coupon.discountValue,
-      discount,
+      discount: toMajorUnits(outcome.discountMinor),
+      currency: currency.code,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// ── Admin: mark a coupon as used (called after successful payment) ──────────
-
+/**
+ * Count one redemption against a coupon.
+ *
+ * Was exported and called from nowhere, so `usedCount` never moved and the
+ * `maxUses` check in `validateCoupon` could never fire — a single-use coupon
+ * was infinitely reusable. `createIntent` calls it now. See #418.
+ *
+ * `$inc` rather than read-modify-write so two checkouts redeeming the last
+ * use of a coupon at the same time cannot both read the same `usedCount`.
+ * The increment is atomic; the check that precedes it is not, so a coupon can
+ * still be overshot by one under a genuine race. That is the right trade here
+ * — refusing a paid-for discount after the card has been charged is worse
+ * than honouring one extra redemption.
+ */
 export const recordCouponUse = async (code) => {
-  await Coupon.findOneAndUpdate(
-    { code: code.toUpperCase() },
-    { $inc: { usedCount: 1 } }
+  const normalised = normaliseCouponCode(code);
+
+  if (!normalised) {
+    return null;
+  }
+
+  return Coupon.findOneAndUpdate(
+    { code: normalised },
+    { $inc: { usedCount: 1 } },
+    { new: true }
   );
 };
 
