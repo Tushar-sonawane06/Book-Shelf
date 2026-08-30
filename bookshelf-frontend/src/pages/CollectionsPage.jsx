@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
 import {
@@ -6,6 +6,7 @@ import {
   addBookToCollection, removeBookFromCollection,
 } from '../services/collectionService.js';
 import { getBooksByIds } from '../services/bookService.js';
+import { usePageMetadata } from '../hooks/usePageMetadata.js';
 import './CollectionsPage.css';
 
 /**
@@ -15,6 +16,16 @@ import './CollectionsPage.css';
  * in the selected collection with an "Add Book" search to expand it.
  */
 export default function CollectionsPage() {
+  /*
+   * The page had no route, so it also had no title — the browser tab kept
+   * whatever the previous route set. See #337 for the rest of the pages and
+   * #421 for why this one was missed.
+   */
+  usePageMetadata({
+    title: 'My collections',
+    description: 'Group the books you care about into named lists.',
+  });
+
   const [collections, setCollections] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [books, setBooks] = useState([]);
@@ -26,35 +37,63 @@ export default function CollectionsPage() {
 
   // ── Fetch all collections ──────────────────────────────────────────
 
+  /*
+   * `selectedId` was a dependency of this callback while the effect below ran
+   * with `[]`, so the effect captured the first version forever — the
+   * dependency did nothing except make the two disagree about when this
+   * should be rebuilt. The selection is chosen with a functional update
+   * instead, which needs no dependency at all.
+   */
   const fetchCollections = useCallback(async (signal) => {
     try {
       const data = await getCollections({ signal });
       setCollections(data);
-      if (!selectedId && data.length > 0) setSelectedId(data[0].id);
+      setSelectedId((current) => current ?? data[0]?.id ?? null);
     } catch (err) {
-      setError(err.message || 'Failed to load collections');
+      // An abort is not a failure — the page is unmounting.
+      if (err?.code !== 'ERR_CANCELED') {
+        setError(err.message || 'Failed to load collections');
+      }
     } finally {
       setLoading(false);
     }
-  }, [selectedId]);
+  }, []);
 
   useEffect(() => {
     const c = new AbortController();
     fetchCollections(c.signal);
     return () => c.abort();
-  }, []);
+  }, [fetchCollections]);
 
   // ── Fetch books when collection changes ────────────────────────────
 
-  useEffect(() => {
+  /*
+   * Keyed on the ids themselves rather than on the `collections` array.
+   *
+   * `collections` gets a new identity on every state update — including the
+   * ones this page makes after adding or removing a book, which already
+   * update `books` locally — so depending on it refetched the whole
+   * collection from the catalogue after every mutation. The joined ids are a
+   * string, so a change of selection or of contents refetches and nothing
+   * else does. Same reasoning as useBooksByIds.
+   */
+  const selectedBookIds = useMemo(() => {
     const col = collections.find((c) => c.id === selectedId);
-    if (!col || col.bookIds.length === 0) { setBooks([]); return; }
+    return Array.isArray(col?.bookIds) ? col.bookIds : [];
+  }, [collections, selectedId]);
+
+  const bookIdKey = selectedBookIds.join(',');
+
+  useEffect(() => {
+    const ids = bookIdKey ? bookIdKey.split(',') : [];
+    if (ids.length === 0) { setBooks([]); return undefined; }
+
     const c = new AbortController();
-    getBooksByIds(col.bookIds, { signal: c.signal })
+    getBooksByIds(ids, { signal: c.signal })
       .then(({ books: b }) => setBooks(b))
       .catch(() => setBooks([]));
     return () => c.abort();
-  }, [selectedId, collections]);
+  }, [bookIdKey]);
 
   // ── Create ─────────────────────────────────────────────────────────
 
@@ -90,7 +129,6 @@ export default function CollectionsPage() {
     if (!searchId.trim() || !selectedId) return;
     try {
       await addBookToCollection(selectedId, searchId.trim());
-      const col = collections.find((c) => c.id === selectedId);
       setCollections((prev) =>
         prev.map((c) =>
           c.id === selectedId ? { ...c, bookIds: [...c.bookIds, searchId.trim()] } : c

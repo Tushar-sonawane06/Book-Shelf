@@ -6,6 +6,7 @@ import AdminTopBooks from '../components/AdminTopBooks.jsx';
 import AdminRecentOrders from '../components/AdminRecentOrders.jsx';
 import { getDashboardStats } from '../services/adminService.js';
 import { formatMoney } from '../utils/currency.js';
+import { usePageMetadata } from '../hooks/usePageMetadata.js';
 
 import '../components/AdminKpiCard.css';
 import '../components/AdminSalesChart.css';
@@ -28,6 +29,13 @@ import './AdminDashboard.css';
  * data independently so a slow aggregation does not block the KPIs.
  */
 export default function AdminDashboard() {
+  // No route meant no title either; the tab kept the previous page's. See
+  // #337 for the rest of them.
+  usePageMetadata({
+    title: 'Admin dashboard',
+    description: 'Sales, top books and recent orders across the shop.',
+  });
+
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

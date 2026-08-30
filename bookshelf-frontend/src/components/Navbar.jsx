@@ -183,12 +183,19 @@ export default function Navbar({ searchQuery, setSearchQuery }) {
   const label = (key, fallback) => (key ? t(key) || fallback : fallback);
 
   /*
-   * The admin link was shown to every signed-in user, which is the visible
-   * half of #420: the route behind it only checked for a session, so the
-   * navbar was not merely advertising a page customers could not use — it was
-   * advertising one they could open. The route is guarded now, and following
-   * this link as a customer would bounce them to the home page, which reads
-   * as a broken link. So it is only offered to the people it works for.
+   * Collections and the admin dashboard had no route, so they also had no
+   * link. Adding the routes without the links would leave both pages
+   * reachable only by typing a URL, which is not meaningfully better than
+   * unreachable. Collections sits next to the wishlist, which is the other
+   * "books I have put aside" page. See #421.
+   *
+   * The admin links are a separate question. "🛠️ Admin Inventory" was shown
+   * to every signed-in user, which is the visible half of #420: the route
+   * behind it only checked for a session, so the navbar was not merely
+   * advertising a page customers could not use — it was advertising one they
+   * could open. Both routes are guarded now, and following either as a
+   * customer would bounce them to the home page, which reads as a broken
+   * link. So they are only offered to the people they work for.
    */
   const isAdmin = user?.role === 'admin';
 
@@ -196,8 +203,12 @@ export default function Navbar({ searchQuery, setSearchQuery }) {
     ? [
         { to: '/profile', label: t('navbar.profile') || 'Profile' },
         { to: '/account/orders', label: 'My orders' },
+        { to: '/collections', label: '📚 My collections' },
         ...(isAdmin
-          ? [{ to: '/admin/inventory', label: '🛠️ Admin Inventory' }]
+          ? [
+              { to: '/admin', label: '📊 Admin Dashboard' },
+              { to: '/admin/inventory', label: '🛠️ Admin Inventory' },
+            ]
           : []),
         { to: '/design-system', label: '🎨 Design System' },
       ]
