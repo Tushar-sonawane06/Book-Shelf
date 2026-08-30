@@ -1,0 +1,110 @@
+/* ── Admin KPI Card ─────────────────────────────────────────────────── */
+
+.admin-kpi {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 12px;
+  transition: box-shadow 0.2s ease;
+  min-width: 0;
+}
+
+.admin-kpi:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.admin-kpi__icon {
+  font-size: 2rem;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary-light, #eef2ff);
+  border-radius: 10px;
+}
+
+.admin-kpi__content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-kpi__label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.admin-kpi__value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-text, #111827);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-kpi__trend {
+  font-size: 0.78rem;
+  font-weight: 500;
+  margin-top: 0.1rem;
+}
+
+.admin-kpi__trend--up {
+  color: var(--color-success, #059669);
+}
+
+.admin-kpi__trend--down {
+  color: var(--color-error, #dc2626);
+}
+
+/* Loading skeleton */
+
+.admin-kpi--loading .admin-kpi__icon {
+  opacity: 0.5;
+}
+
+.admin-kpi__skeleton {
+  width: 80px;
+  height: 1.5rem;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton, #e5e7eb) 25%,
+    var(--color-skeleton-shine, #f3f4f6) 50%,
+    var(--color-skeleton, #e5e7eb) 75%
+  );
+  background-size: 200% 100%;
+  animation: admin-kpi-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes admin-kpi-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Dark mode ──────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .admin-kpi {
+    background: var(--color-surface-dark, #1f2937);
+    border-color: var(--color-border-dark, #374151);
+  }
+
+  .admin-kpi__icon {
+    background: var(--color-primary-light-dark, #312e81);
+  }
+
+  .admin-kpi__value {
+    color: var(--color-text-dark, #f9fafb);
+  }
+}

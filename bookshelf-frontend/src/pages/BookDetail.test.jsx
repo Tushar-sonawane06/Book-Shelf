@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -21,6 +22,29 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('../components/SkeletonLoader.jsx', () => ({
   default: () => <div data-testid="skeleton" />,
+}));
+
+/*
+ * ReviewList reports a fresh id on every mount, so a test can tell a remount
+ * from a re-render. BookDetail keys it on `reviewKey` precisely to force one.
+ */
+let reviewListMounts = 0;
+vi.mock('../components/ReviewList.jsx', () => ({
+  default: () => {
+    const id = useMemo(() => {
+      reviewListMounts += 1;
+      return reviewListMounts;
+    }, []);
+    return <div data-testid="review-list" data-mount={String(id)} />;
+  },
+}));
+
+const createReview = vi.fn();
+const getMyReview = vi.fn();
+
+vi.mock('../services/reviewService.js', () => ({
+  createReview: (...args) => createReview(...args),
+  getMyReview: (...args) => getMyReview(...args),
 }));
 
 import { BookNotFoundError } from '../services/bookService.js';
@@ -69,6 +93,10 @@ describe('BookDetail', () => {
     getBookById.mockReset();
     getBooks.mockReset();
     getBooks.mockResolvedValue({ books: [] });
+    createReview.mockReset();
+    getMyReview.mockReset();
+    // 404 for "you have not reviewed this book yet" is the normal case.
+    getMyReview.mockRejectedValue(new Error('not found'));
   });
 
   afterEach(() => {
@@ -150,7 +178,8 @@ describe('BookDetail', () => {
   });
 
   it('renders a book with no rating instead of throwing on toFixed', async () => {
-    const { rating, ...withoutRating } = BOOK;
+    // eslint-disable-next-line no-unused-vars -- destructured to drop it
+    const { rating: _rating, ...withoutRating } = BOOK;
     getBookById.mockResolvedValue(withoutRating);
 
     renderDetail('b1');
@@ -257,5 +286,78 @@ describe('BookDetail', () => {
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
     expect(await screen.findByText(/select a rating/i)).toBeInTheDocument();
+  });
+
+  /*
+   * The hook order, directly.
+   *
+   * `useState` for `reviewKey` sat below the loading, not-found and error
+   * returns. Every one of the tests above went through the loading render
+   * first and so tripped it, which is why eleven of fifteen were failing at
+   * once — but they each report it as whatever assertion happened to run
+   * after the throw. These say what the defect actually is, so a regression
+   * names itself.
+   */
+  describe('hook order', () => {
+    /** Renders and returns whatever React logged as an error. */
+    async function renderAndCollectErrors(setup) {
+      const logged = [];
+      vi.spyOn(console, 'error').mockImplementation((...args) => {
+        logged.push(args.map(String).join(' '));
+      });
+
+      setup();
+      const view = renderDetail('b1');
+      await waitFor(() => expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument());
+
+      return { logged, view };
+    }
+
+    it('runs the same hooks on the loading render and the loaded render', async () => {
+      const { logged } = await renderAndCollectErrors(() => {
+        getBookById.mockResolvedValue(BOOK);
+      });
+
+      expect(logged.join('\n')).not.toMatch(/Rendered more hooks/);
+      expect(screen.getByRole('heading', { name: 'The Quiet Ones' })).toBeInTheDocument();
+    });
+
+    it('runs the same hooks when the book is not found', async () => {
+      const { logged } = await renderAndCollectErrors(() => {
+        getBookById.mockRejectedValue(new BookNotFoundError('nope'));
+      });
+
+      expect(logged.join('\n')).not.toMatch(/Rendered more hooks/);
+    });
+
+    it('runs the same hooks when the request fails', async () => {
+      const { logged } = await renderAndCollectErrors(() => {
+        getBookById.mockRejectedValue(new Error('network down'));
+      });
+
+      expect(logged.join('\n')).not.toMatch(/Rendered more hooks/);
+    });
+  });
+
+  it('remounts the review list after a review is posted', async () => {
+    // This is the whole reason reviewKey exists, and nothing covered it —
+    // which is part of why the hook could sit in an illegal position for as
+    // long as it did.
+    getBookById.mockResolvedValue(BOOK);
+    createReview.mockResolvedValue({ review: { id: 'r1' } });
+    const user = userEvent.setup();
+
+    renderDetail('b1');
+    await screen.findByRole('heading', { name: 'The Quiet Ones' });
+
+    const before = screen.getByTestId('review-list').getAttribute('data-mount');
+
+    await user.click(screen.getByRole('button', { name: '4 Stars' }));
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+
+    await waitFor(() => expect(createReview).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(screen.getByTestId('review-list').getAttribute('data-mount')).not.toBe(before)
+    );
   });
 });

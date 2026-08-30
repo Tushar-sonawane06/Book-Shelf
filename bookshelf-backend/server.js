@@ -40,9 +40,12 @@ try {
   throw error;
 }
 
+import bookRepository from './repositories/bookRepository.js';
+
 mongoose.connect(MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('Connected to MongoDB');
+    await bookRepository.syncDatabaseWithJson();
 
     /*
      * Checkout takes inventory before the payment intent exists, and nothing

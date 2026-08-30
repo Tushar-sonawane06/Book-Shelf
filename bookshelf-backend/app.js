@@ -8,17 +8,12 @@ import orderRoutes from './routes/orderRoutes.js';
 import wishlistRoutes from './routes/wishlistRoutes.js';
 import bookRoutes from './routes/books.js';
 import readingGoalRoutes from './routes/readingGoalRoutes.js';
+import stockAlertRoutes from './routes/stockAlertRoutes.js';
 import stripeWebhookHandler from './webhook/stripeWebhook.js';
 import { configureTrustProxy } from './config/trustProxy.js';
 
 const app = express();
 
-/*
- * Must run before anything reads req.ip — which the rate limiters on
- * /api/auth do. Without it, req.ip behind a proxy is the proxy's own address
- * on every request, so a per-IP limit applied to every user at once.
- * Defaults to trusting nothing, which is correct for a local run. See #298.
- */
 configureTrustProxy(app);
 
 app.use(cors({
@@ -43,6 +38,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/reading-goals', readingGoalRoutes);
+app.use('/api/stock-alerts', stockAlertRoutes);
 
 app.get('/', (req, res) => {
   res.send('API is running...');

@@ -237,7 +237,20 @@ function describe(value) {
  */
 export function priceOrder(
   items,
-  { taxRate = TAX_RATE, currency = getCurrencyConfig(), shipping = currency.defaultShipping } = {}
+  {
+    taxRate = TAX_RATE,
+    currency = getCurrencyConfig(),
+    shipping = currency.defaultShipping,
+    /*
+     * A coupon discount, already decided, in minor units.
+     *
+     * It arrives as a number rather than as a coupon document because this
+     * module prices carts and knows nothing about coupons — utils/coupon.js
+     * decides *whether* and *how much*, and this decides where it lands in
+     * the total. See #418.
+     */
+     discountMinor = 0,
+  } = {}
 ) {
   const orderItems = [];
   const lineTotals = [];
@@ -257,9 +270,26 @@ export function priceOrder(
   }
 
   const subtotalMinor = sum(lineTotals);
-  const taxMinor = applyRate(subtotalMinor, taxRate);
+
+  /*
+   * Clamped here as well as in utils/coupon.js. That is deliberate
+   * belt-and-braces: this function is exported and a future caller could pass
+   * a discount from somewhere that has not run the coupon rules. A discount
+   * larger than the subtotal would otherwise make the goods free and start
+   * eating into the tax and the shipping, and a negative one would be a
+   * surcharge wearing a discount's name.
+   */
+  const appliedDiscountMinor = clampDiscount(discountMinor, subtotalMinor);
+
+  /*
+   * Tax is charged on what the customer actually pays for the goods, not on
+   * the list price — so the discount comes off before the rate is applied.
+   * Shipping is not discounted: a coupon is against the order's contents.
+   */
+  const discountedSubtotalMinor = subtotalMinor - appliedDiscountMinor;
+  const taxMinor = applyRate(discountedSubtotalMinor, taxRate);
   const shippingMinor = toMinorUnits(shipping);
-  const totalMinor = sum([subtotalMinor, taxMinor, shippingMinor]);
+  const totalMinor = sum([discountedSubtotalMinor, taxMinor, shippingMinor]);
 
   return {
     orderItems,
@@ -270,15 +300,42 @@ export function priceOrder(
     currency: currency.code,
     minorUnits: {
       subtotal: subtotalMinor,
+      discount: appliedDiscountMinor,
       tax: taxMinor,
       shipping: shippingMinor,
       total: totalMinor,
     },
     subtotal: toMajorUnits(subtotalMinor),
+    /*
+     * Always present, and zero when no coupon was used, so a caller never has
+     * to distinguish "no discount" from "this response predates discounts".
+     * The checkout summary renders the row from this rather than from what
+     * the client computed for itself.
+     */
+    discount: toMajorUnits(appliedDiscountMinor),
     tax: toMajorUnits(taxMinor),
     shipping: toMajorUnits(shippingMinor),
     total: toMajorUnits(totalMinor),
   };
+}
+
+/**
+ * A discount that is a whole number of minor units, at least nothing, and at
+ * most the whole subtotal.
+ *
+ * A non-integer is rounded rather than refused: the callers all produce
+ * integers, so reaching this with a fraction means a rounding slipped through
+ * somewhere upstream, and turning that into a 500 in the middle of a checkout
+ * is worse than absorbing it.
+ */
+function clampDiscount(discountMinor, subtotalMinor) {
+  const value = Number(discountMinor);
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+
+  return Math.min(Math.round(value), subtotalMinor);
 }
 
 /**

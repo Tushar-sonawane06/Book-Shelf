@@ -78,15 +78,17 @@ export const registerUser = async (req, res, next) => {
   }
 };
 
-// @desc    Logout user / clear cookie
+import sessionRepository from '../repositories/sessionRepository.js';
+
+// @desc    Logout user / clear cookie & revoke session token
 // @route   POST /api/auth/logout
 // @access  Public
-export const logoutUser = (req, res) => {
-  // A browser only replaces a cookie when name, domain and path all match the
-  // one it already has. Deriving these from the same helper that sets the
-  // cookie is what guarantees they do — the inline `{ httpOnly, expires }`
-  // that used to be here matched only by coincidence, and would have stopped
-  // matching the moment the setter grew a `domain`.
+export const logoutUser = async (req, res) => {
+  const token = req.cookies?.[SESSION_COOKIE_NAME];
+  if (token) {
+    await sessionRepository.revokeSession(token);
+  }
+
   res.cookie(SESSION_COOKIE_NAME, '', clearSessionCookieOptions());
 
   res.status(200).json({ message: 'Logged out successfully' });

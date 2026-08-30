@@ -1,256 +1,400 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
+import Book from '../models/Book.js';
 import cacheManager from '../utils/cacheManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const booksFilePath = path.join(__dirname, '../data/books.json');
 
-export const getBooks = () => {
-    // 1. Check Cache
-    const cachedBooks = cacheManager.get('books');
-    if (cachedBooks) {
-        return cachedBooks;
-    }
+/** Check if MongoDB is connected and ready. */
+const isMongoConnected = () => mongoose.connection.readyState === 1;
 
-    // 2. Cache Miss: Read from Disk
-    try {
-        const data = fs.readFileSync(booksFilePath, 'utf8');
-        const books = JSON.parse(data);
-        
-        // 3. Store in Cache
-        cacheManager.set('books', books);
-        return books;
-    } catch (error) {
-        console.error('Error reading books data:', error);
-        return [];
-    }
-};
-
-export const getBookById = (id) => {
-    const books = getBooks();
-    return books.find(book => book.id === id);
-};
-
-export const updateInventoryWithOCC = (itemsToUpdate) => {
-    // itemsToUpdate is an array of { bookId, quantity, expectedVersion }
-    try {
-        const data = fs.readFileSync(booksFilePath, 'utf8');
-        const books = JSON.parse(data);
-        
-        // 1. Validation phase (Verify all items before any mutation)
-        const bookIndices = [];
-        for (const item of itemsToUpdate) {
-            const bookIndex = books.findIndex(b => b.id === item.bookId);
-            if (bookIndex === -1) {
-                const error = new Error(`Book not found: ${item.bookId}`);
-                error.status = 404;
-                throw error;
-            }
-
-            const book = books[bookIndex];
-
-            // Version Check (Optimistic Concurrency Control)
-            if (book.__v !== item.expectedVersion) {
-                const error = new Error(`Version mismatch for book ${item.bookId}: Another transaction updated this book.`);
-                error.status = 409;
-                throw error;
-            }
-
-            // Quantity check.
-            //
-            // The inventory check below is `book.inventory < item.quantity`,
-            // which a negative quantity passes trivially — `8 < -5` is false.
-            // The mutation phase then ran `inventory -= -5` and *added* five
-            // units to the catalogue on disk. The controller validates its
-            // input now, but a repository that can be talked into minting
-            // stock should not be one refactor away from being reachable
-            // again. See #297.
-            if (!Number.isInteger(item.quantity) || item.quantity < 1) {
-                const error = new Error(
-                    `Quantity for book ${item.bookId} must be a positive integer, received ${item.quantity}.`
-                );
-                error.status = 400;
-                throw error;
-            }
-
-            // Inventory Check
-            if (book.inventory < item.quantity) {
-                const error = new Error(`Insufficient inventory for book ${item.bookId}.`);
-                error.status = 409;
-                throw error;
-            }
-
-            bookIndices.push({ index: bookIndex, quantity: item.quantity });
+/**
+ * Sync MongoDB with JSON file if MongoDB collection is empty.
+ */
+export const syncDatabaseWithJson = async () => {
+  if (!isMongoConnected()) return;
+  try {
+    const count = await Book.countDocuments();
+    if (count === 0) {
+      console.log('[bookRepository] MongoDB Book collection empty. Seeding from books.json...');
+      if (fs.existsSync(booksFilePath)) {
+        const rawData = fs.readFileSync(booksFilePath, 'utf8');
+        const books = JSON.parse(rawData);
+        if (Array.isArray(books) && books.length > 0) {
+          const docs = books.map((b) => ({
+            id: b.id,
+            title: b.title,
+            author: b.author,
+            genre: b.genre,
+            price: Number(b.price),
+            rating: b.rating !== undefined ? Number(b.rating) : 0,
+            reviewsCount: b.reviewsCount !== undefined ? Number(b.reviewsCount) : 0,
+            inventory: b.inventory !== undefined ? Number(b.inventory) : 0,
+            description: b.description || '',
+            coverImage: b.coverImage || '',
+            pages: b.pages !== undefined ? Number(b.pages) : 0,
+            __v: b.__v || 0,
+          }));
+          await Book.insertMany(docs);
+          console.log(`[bookRepository] Successfully seeded ${docs.length} books into MongoDB.`);
         }
-
-        // 2. Mutation phase
-        for (const { index, quantity } of bookIndices) {
-            books[index].inventory -= quantity;
-            books[index].__v += 1;
-        }
-
-        // 3. Write back synchronously
-        fs.writeFileSync(booksFilePath, JSON.stringify(books, null, 2), 'utf8');
-
-        // 4. Invalidate Cache after modification
-        cacheManager.del('books');
-
-        return true;
-    } catch (error) {
-        throw error;
+      }
     }
+  } catch (error) {
+    console.error('[bookRepository] Error syncing MongoDB with JSON:', error.message);
+  }
 };
 
 /**
- * Put reserved stock back.
- *
- * Inventory is taken before the payment intent exists, because the alternative
- * is overselling between the two steps. The consequence is that every failure
- * after the reservation has to hand the units back, or a failed checkout
- * silently destroys stock — with inventories of 8 to 10, a handful of Stripe
- * errors took the shop to zero. See #297.
- *
- * Deliberately *not* version-checked. This is a compensating action for a
- * reservation that already happened; refusing to run because someone else
- * bought a copy in between would leave the units lost, which is the outcome
- * it exists to prevent. Unknown ids are skipped rather than thrown on, for
- * the same reason.
- *
- * Never throws. Callers reach this from an error path and must not lose the
- * original error to a secondary failure — the return value says what
- * happened instead.
+ * Get all books synchronously (from Cache / Disk fallback for legacy compatibility).
  */
-export const restoreInventory = (itemsToRestore) => {
-    if (!Array.isArray(itemsToRestore) || itemsToRestore.length === 0) {
-        return { restored: [], failed: [] };
-    }
+export const getBooks = () => {
+  const cachedBooks = cacheManager.get('books');
+  if (cachedBooks) {
+    return cachedBooks;
+  }
 
+  try {
+    const data = fs.readFileSync(booksFilePath, 'utf8');
+    const books = JSON.parse(data);
+    cacheManager.set('books', books);
+    return books;
+  } catch (error) {
+    console.error('Error reading books data from disk:', error);
+    return [];
+  }
+};
+
+/**
+ * Async fetch all books (queries MongoDB if connected, else uses disk/cache).
+ */
+export const getBooksAsync = async () => {
+  if (isMongoConnected()) {
     try {
-        const data = fs.readFileSync(booksFilePath, 'utf8');
-        const books = JSON.parse(data);
-
-        const restored = [];
-        const failed = [];
-
-        for (const item of itemsToRestore) {
-            if (!Number.isInteger(item.quantity) || item.quantity < 1) {
-                failed.push({ bookId: item.bookId, reason: 'invalid quantity' });
-                continue;
-            }
-
-            const bookIndex = books.findIndex((b) => b.id === item.bookId);
-
-            if (bookIndex === -1) {
-                failed.push({ bookId: item.bookId, reason: 'book not found' });
-                continue;
-            }
-
-            books[bookIndex].inventory += item.quantity;
-            books[bookIndex].__v += 1;
-            restored.push({ bookId: item.bookId, quantity: item.quantity });
-        }
-
-        if (restored.length > 0) {
-            fs.writeFileSync(booksFilePath, JSON.stringify(books, null, 2), 'utf8');
-            cacheManager.del('books');
-        }
-
-        return { restored, failed };
-    } catch (error) {
-        // Losing stock is bad; losing the error that explains why the
-        // checkout failed in the first place is worse.
-        console.error('Failed to restore reserved inventory:', error);
-        return {
-            restored: [],
-            failed: itemsToRestore.map((item) => ({
-                bookId: item.bookId,
-                reason: error.message,
-            })),
-        };
+      const dbBooks = await Book.find({}).lean();
+      if (dbBooks.length > 0) {
+        cacheManager.set('books', dbBooks);
+        return dbBooks;
+      }
+    } catch (err) {
+      console.error('[bookRepository] MongoDB query failed, falling back to disk:', err.message);
     }
+  }
+  return getBooks();
 };
 
-export const addBook = (bookData) => {
-    const books = getBooks();
-    const newId = bookData.id || `b${Date.now()}`;
-    
-    const newBook = {
-        id: newId,
-        title: bookData.title,
-        author: bookData.author,
-        genre: bookData.genre,
-        price: Number(bookData.price),
-        rating: bookData.rating !== undefined ? Number(bookData.rating) : 0,
-        reviewsCount: bookData.reviewsCount !== undefined ? Number(bookData.reviewsCount) : 0,
-        inventory: bookData.inventory !== undefined ? Number(bookData.inventory) : 0,
-        description: bookData.description || '',
-        coverImage: bookData.coverImage || '',
-        pages: bookData.pages !== undefined ? Number(bookData.pages) : 0,
-        __v: 0,
-    };
-
-    const updatedBooks = [...books, newBook];
-    fs.writeFileSync(booksFilePath, JSON.stringify(updatedBooks, null, 2), 'utf8');
-    cacheManager.del('books');
-
-    return newBook;
+/**
+ * Get book by ID.
+ */
+export const getBookById = (id) => {
+  const books = getBooks();
+  return books.find((book) => book.id === id);
 };
 
-export const updateBook = (id, updateData) => {
-    const books = getBooks();
-    const index = books.findIndex(b => b.id === id);
-    if (index === -1) {
-        return null;
+/**
+ * Async fetch book by ID.
+ */
+export const getBookByIdAsync = async (id) => {
+  if (isMongoConnected()) {
+    try {
+      const book = await Book.findOne({ id }).lean();
+      if (book) return book;
+    } catch (err) {
+      console.error('[bookRepository] MongoDB findOne failed:', err.message);
+    }
+  }
+  return getBookById(id);
+};
+
+/**
+ * Optimistic Concurrency Control (OCC) inventory update.
+ */
+export const updateInventoryWithOCC = (itemsToUpdate) => {
+  try {
+    const data = fs.readFileSync(booksFilePath, 'utf8');
+    const books = JSON.parse(data);
+
+    const bookIndices = [];
+    for (const item of itemsToUpdate) {
+      const bookIndex = books.findIndex((b) => b.id === item.bookId);
+      if (bookIndex === -1) {
+        const error = new Error(`Book not found: ${item.bookId}`);
+        error.status = 404;
+        throw error;
+      }
+
+      const book = books[bookIndex];
+
+      if (book.__v !== item.expectedVersion) {
+        const error = new Error(
+          `Version mismatch for book ${item.bookId}: Another transaction updated this book.`
+        );
+        error.status = 409;
+        throw error;
+      }
+
+      if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+        const error = new Error(
+          `Quantity for book ${item.bookId} must be a positive integer, received ${item.quantity}.`
+        );
+        error.status = 400;
+        throw error;
+      }
+
+      if (book.inventory < item.quantity) {
+        const error = new Error(`Insufficient inventory for book ${item.bookId}.`);
+        error.status = 409;
+        throw error;
+      }
+
+      bookIndices.push({ index: bookIndex, quantity: item.quantity });
     }
 
-    const currentBook = books[index];
-    const updatedBook = {
-        ...currentBook,
-        ...updateData,
-        id: currentBook.id, // prevent changing id
-        price: updateData.price !== undefined ? Number(updateData.price) : currentBook.price,
-        rating: updateData.rating !== undefined ? Number(updateData.rating) : currentBook.rating,
-        inventory: updateData.inventory !== undefined ? Number(updateData.inventory) : currentBook.inventory,
-        pages: updateData.pages !== undefined ? Number(updateData.pages) : currentBook.pages,
-        __v: (currentBook.__v || 0) + 1,
-    };
+    for (const { index, quantity } of bookIndices) {
+      books[index].inventory -= quantity;
+      books[index].__v += 1;
+    }
 
-    books[index] = updatedBook;
     fs.writeFileSync(booksFilePath, JSON.stringify(books, null, 2), 'utf8');
     cacheManager.del('books');
 
-    return updatedBook;
-};
-
-export const deleteBook = (id) => {
-    const books = getBooks();
-    const index = books.findIndex(b => b.id === id);
-    if (index === -1) {
-        return false;
+    // Also update Mongo in background if connected
+    if (isMongoConnected()) {
+      Promise.all(
+        itemsToUpdate.map((item) =>
+          Book.findOneAndUpdate(
+            { id: item.bookId, __v: item.expectedVersion, inventory: { $gte: item.quantity } },
+            { $inc: { inventory: -item.quantity, __v: 1 } }
+          )
+        )
+      ).catch((err) => console.error('[bookRepository] Async Mongo OCC update error:', err));
     }
 
-    const filteredBooks = books.filter(b => b.id !== id);
-    fs.writeFileSync(booksFilePath, JSON.stringify(filteredBooks, null, 2), 'utf8');
-    cacheManager.del('books');
-
     return true;
+  } catch (error) {
+    throw error;
+  }
 };
 
+/**
+ * Async OCC inventory update.
+ */
+export const updateInventoryWithOCCAsync = async (itemsToUpdate) => {
+  if (isMongoConnected()) {
+    for (const item of itemsToUpdate) {
+      const book = await Book.findOne({ id: item.bookId });
+      if (!book) {
+        const error = new Error(`Book not found: ${item.bookId}`);
+        error.status = 404;
+        throw error;
+      }
+      if (book.__v !== item.expectedVersion) {
+        const error = new Error(
+          `Version mismatch for book ${item.bookId}: Another transaction updated this book.`
+        );
+        error.status = 409;
+        throw error;
+      }
+      if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+        const error = new Error(
+          `Quantity for book ${item.bookId} must be a positive integer, received ${item.quantity}.`
+        );
+        error.status = 400;
+        throw error;
+      }
+      if (book.inventory < item.quantity) {
+        const error = new Error(`Insufficient inventory for book ${item.bookId}.`);
+        error.status = 409;
+        throw error;
+      }
+    }
+
+    for (const item of itemsToUpdate) {
+      await Book.updateOne(
+        { id: item.bookId },
+        { $inc: { inventory: -item.quantity, __v: 1 } }
+      );
+    }
+  }
+  return updateInventoryWithOCC(itemsToUpdate);
+};
+
+/**
+ * Restore reserved inventory.
+ */
+export const restoreInventory = (itemsToRestore) => {
+  if (!Array.isArray(itemsToRestore) || itemsToRestore.length === 0) {
+    return { restored: [], failed: [] };
+  }
+
+  try {
+    const data = fs.readFileSync(booksFilePath, 'utf8');
+    const books = JSON.parse(data);
+
+    const restored = [];
+    const failed = [];
+
+    for (const item of itemsToRestore) {
+      if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+        failed.push({ bookId: item.bookId, reason: 'invalid quantity' });
+        continue;
+      }
+
+      const bookIndex = books.findIndex((b) => b.id === item.bookId);
+
+      if (bookIndex === -1) {
+        failed.push({ bookId: item.bookId, reason: 'book not found' });
+        continue;
+      }
+
+      books[bookIndex].inventory += item.quantity;
+      books[bookIndex].__v += 1;
+      restored.push({ bookId: item.bookId, quantity: item.quantity });
+    }
+
+    if (restored.length > 0) {
+      fs.writeFileSync(booksFilePath, JSON.stringify(books, null, 2), 'utf8');
+      cacheManager.del('books');
+
+      if (isMongoConnected()) {
+        Promise.all(
+          restored.map((r) =>
+            Book.updateOne({ id: r.bookId }, { $inc: { inventory: r.quantity, __v: 1 } })
+          )
+        ).catch((err) => console.error('[bookRepository] Async Mongo restore error:', err));
+      }
+    }
+
+    return { restored, failed };
+  } catch (error) {
+    console.error('Failed to restore reserved inventory:', error);
+    return {
+      restored: [],
+      failed: itemsToRestore.map((item) => ({
+        bookId: item.bookId,
+        reason: error.message,
+      })),
+    };
+  }
+};
+
+/**
+ * Add a new book listing.
+ */
+export const addBook = (bookData) => {
+  const books = getBooks();
+  const newId = bookData.id || `b${Date.now()}`;
+
+  const newBook = {
+    id: newId,
+    title: bookData.title,
+    author: bookData.author,
+    genre: bookData.genre,
+    price: Number(bookData.price),
+    rating: bookData.rating !== undefined ? Number(bookData.rating) : 0,
+    reviewsCount: bookData.reviewsCount !== undefined ? Number(bookData.reviewsCount) : 0,
+    inventory: bookData.inventory !== undefined ? Number(bookData.inventory) : 0,
+    description: bookData.description || '',
+    coverImage: bookData.coverImage || '',
+    pages: bookData.pages !== undefined ? Number(bookData.pages) : 0,
+    __v: 0,
+  };
+
+  const updatedBooks = [...books, newBook];
+  fs.writeFileSync(booksFilePath, JSON.stringify(updatedBooks, null, 2), 'utf8');
+  cacheManager.del('books');
+
+  if (isMongoConnected()) {
+    Book.create(newBook).catch((err) =>
+      console.error('[bookRepository] Mongo create book error:', err)
+    );
+  }
+
+  return newBook;
+};
+
+/**
+ * Update an existing book.
+ */
+export const updateBook = (id, updateData) => {
+  const books = getBooks();
+  const index = books.findIndex((b) => b.id === id);
+  if (index === -1) {
+    return null;
+  }
+
+  const currentBook = books[index];
+  const updatedBook = {
+    ...currentBook,
+    ...updateData,
+    id: currentBook.id,
+    price: updateData.price !== undefined ? Number(updateData.price) : currentBook.price,
+    rating: updateData.rating !== undefined ? Number(updateData.rating) : currentBook.rating,
+    inventory: updateData.inventory !== undefined ? Number(updateData.inventory) : currentBook.inventory,
+    pages: updateData.pages !== undefined ? Number(updateData.pages) : currentBook.pages,
+    __v: (currentBook.__v || 0) + 1,
+  };
+
+  books[index] = updatedBook;
+  fs.writeFileSync(booksFilePath, JSON.stringify(books, null, 2), 'utf8');
+  cacheManager.del('books');
+
+  if (isMongoConnected()) {
+    Book.findOneAndUpdate({ id }, updatedBook).catch((err) =>
+      console.error('[bookRepository] Mongo update book error:', err)
+    );
+  }
+
+  return updatedBook;
+};
+
+/**
+ * Delete a book.
+ */
+export const deleteBook = (id) => {
+  const books = getBooks();
+  const index = books.findIndex((b) => b.id === id);
+  if (index === -1) {
+    return false;
+  }
+
+  const filteredBooks = books.filter((b) => b.id !== id);
+  fs.writeFileSync(booksFilePath, JSON.stringify(filteredBooks, null, 2), 'utf8');
+  cacheManager.del('books');
+
+  if (isMongoConnected()) {
+    Book.deleteOne({ id }).catch((err) =>
+      console.error('[bookRepository] Mongo delete book error:', err)
+    );
+  }
+
+  return true;
+};
+
+/**
+ * Update stock level.
+ */
 export const updateBookStock = (id, newInventory) => {
-    return updateBook(id, { inventory: Number(newInventory) });
+  return updateBook(id, { inventory: Number(newInventory) });
 };
 
 const bookRepository = {
-    getBooks,
-    getBookById,
-    updateInventoryWithOCC,
-    restoreInventory,
-    addBook,
-    updateBook,
-    deleteBook,
-    updateBookStock,
+  syncDatabaseWithJson,
+  getBooks,
+  getBooksAsync,
+  getBookById,
+  getBookByIdAsync,
+  updateInventoryWithOCC,
+  updateInventoryWithOCCAsync,
+  restoreInventory,
+  addBook,
+  updateBook,
+  deleteBook,
+  updateBookStock,
 };
 
 export default bookRepository;

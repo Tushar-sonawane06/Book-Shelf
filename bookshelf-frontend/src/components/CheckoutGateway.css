@@ -71,24 +71,17 @@
   margin: 0 16px;
 }
 
-.btn-primary {
-  background: var(--ink);
-  color: var(--paper);
-  border: none;
-  padding: 10px 24px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s ease;
-  width: 100%;
-  max-width: 250px;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-.btn-secondary {
+/*
+ * Namespaced, because these were `.btn-primary` and `.btn-secondary` — two
+ * unprefixed global class names in a component stylesheet.
+ *
+ * `Checkout.css` already defines both, with different padding and a different
+ * border radius, and `EmptyOrders.css` styles `.empty-orders .btn-primary`.
+ * Two files defining the same bare selector means the winner is decided by
+ * bundle order, and the loser silently restyles a button on an unrelated page.
+ * A component's stylesheet only ever names that component's own classes.
+ */
+.checkout-gateway__btn {
   background: transparent;
   color: var(--ink);
   border: 1px solid var(--ink);
@@ -96,12 +89,27 @@
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
   width: 100%;
   max-width: 250px;
 }
 
-.btn-secondary:hover {
+.checkout-gateway__btn:hover {
   background: var(--ink);
   color: var(--paper);
+}
+
+.checkout-gateway__btn--primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.checkout-gateway__btn--primary:hover {
+  opacity: 0.9;
+}
+
+.checkout-gateway__btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }

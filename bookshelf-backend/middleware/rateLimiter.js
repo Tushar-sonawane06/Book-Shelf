@@ -207,4 +207,15 @@ export const checkoutLimiter = createRateLimiter({
     'Too many checkout attempts from this address. Please try again later.',
 });
 
+/**
+ * Administrative mutations rate limiter.
+ * Bounds bulk write, inventory update, and order status mutation attempts.
+ */
+export const adminMutationLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message:
+    'Too many administrative request attempts from this address. Please try again later.',
+});
+
 export default createRateLimiter;
