@@ -160,3 +160,72 @@
     border-bottom-color: var(--color-border-dark, #374151);
   }
 }
+
+/* ── Resolved book details ──────────────────────────────────────────── */
+
+/*
+ * A row is now a cover swatch, the book's details, and the remove button.
+ * The swatch does not shrink: with a long title the flex row would otherwise
+ * squeeze it to a sliver rather than truncating the text, which is what the
+ * ellipsis on .alerts-page__book-link is for. See #422.
+ */
+.alerts-page__cover {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 48px;
+  margin-right: 0.9rem;
+  border-radius: 3px;
+  background: var(--color-border, #e5e7eb);
+  box-shadow: inset -2px 0 3px rgba(0, 0, 0, 0.18);
+}
+
+/* The info column takes the space the swatch and the button leave. */
+.alerts-page__info {
+  flex: 1 1 auto;
+}
+
+.alerts-page__author,
+.alerts-page__price {
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.alerts-page__price {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * A book the catalogue no longer has. The id is all that is known about it,
+ * so it is shown — greyed and not a link, because there is nothing to link
+ * to, with the sentence below saying why.
+ */
+.alerts-page__book-link--missing {
+  color: var(--color-text-muted, #9ca3af);
+  font-style: italic;
+}
+
+.alerts-page__unavailable {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #9ca3af);
+}
+
+/* Sits under the row it belongs to rather than in the page-level banner. */
+.alerts-page__row-error {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: #b91c1c;
+}
+
+.alerts-page__remove:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+@media (prefers-color-scheme: dark) {
+  .alerts-page__cover {
+    background: var(--color-border-dark, #374151);
+  }
+  .alerts-page__row-error {
+    color: #fca5a5;
+  }
+}
