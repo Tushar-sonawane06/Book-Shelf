@@ -256,4 +256,95 @@ describe('Navbar', () => {
       expect(hamburger).toHaveAttribute('aria-expanded', 'true');
     });
   });
+
+  /*
+   * The account menu, and who is offered what.
+   *
+   * Two bugs meet here. Collections and the admin dashboard had no route and
+   * therefore no link (#421) — adding the routes without the links would
+   * leave both reachable only by typing a URL. And "🛠️ Admin Inventory" was
+   * offered to every signed-in user while the route behind it checked only
+   * for a session (#420), so it was not a link that merely looked available
+   * to customers, it was one they could follow all the way into the
+   * inventory manager.
+   *
+   * So the menu now splits three ways: everyone signed in gets collections,
+   * only admins get the two admin pages, and anonymous visitors get neither.
+   */
+  describe('the account menu', () => {
+    const asAdmin = () =>
+      signedIn({ user: { name: 'Root', _id: 'u0', role: 'admin' } });
+    const asCustomer = () =>
+      signedIn({ user: { name: 'Asha', _id: 'u1', role: 'user' } });
+
+    async function openAccountMenu(user) {
+      await user.click(screen.getByRole('button', { name: /toggle menu/i }));
+    }
+
+    it('offers collections to any signed-in user', async () => {
+      const user = userEvent.setup();
+      renderNavbar({ auth: asCustomer() });
+
+      await openAccountMenu(user);
+
+      // Desktop and mobile menus both render the account links, so this is
+      // deliberately getAll — one match would mean one of them lost it.
+      expect(
+        screen.getAllByRole('link', { name: /my collections/i }).length
+      ).toBeGreaterThan(0);
+    });
+
+    it('offers both admin pages to an admin', async () => {
+      const user = userEvent.setup();
+      renderNavbar({ auth: asAdmin() });
+
+      await openAccountMenu(user);
+
+      expect(
+        screen.getAllByRole('link', { name: /admin dashboard/i }).length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.getAllByRole('link', { name: /admin inventory/i }).length
+      ).toBeGreaterThan(0);
+    });
+
+    it('offers neither admin page to a signed-in customer', async () => {
+      const user = userEvent.setup();
+      renderNavbar({ auth: asCustomer() });
+
+      await openAccountMenu(user);
+
+      expect(
+        screen.queryByRole('link', { name: /admin dashboard/i })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: /admin inventory/i })
+      ).not.toBeInTheDocument();
+
+      // The rest of the menu is untouched.
+      expect(screen.getAllByRole('link', { name: /my orders/i }).length).toBeGreaterThan(0);
+      expect(screen.getAllByRole('link', { name: /my collections/i }).length).toBeGreaterThan(0);
+    });
+
+    it('treats a user with no role as not an admin', async () => {
+      // An older session, or a profile response that has not arrived yet.
+      // Absent is not admin.
+      const user = userEvent.setup();
+      renderNavbar({ auth: signedIn({ user: { name: 'Asha', _id: 'u1' } }) });
+
+      await openAccountMenu(user);
+
+      expect(
+        screen.queryByRole('link', { name: /admin inventory/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it('offers none of them to an anonymous visitor', () => {
+      renderNavbar();
+
+      for (const name of [/my collections/i, /admin dashboard/i, /admin inventory/i]) {
+        expect(screen.queryByRole('link', { name })).not.toBeInTheDocument();
+      }
+    });
+  });
 });

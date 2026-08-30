@@ -9,6 +9,8 @@ import { countOrderItems, formatTotalSpent } from '../utils/orderFormat.js';
 import './OrderHistory.css';
 import { usePageMetadata } from '../hooks/usePageMetadata.js';
 
+import StatusBadge from '../components/StatusBadge.jsx';
+
 export default function OrderHistory() {
   usePageMetadata({
     title: 'Your orders',
@@ -16,15 +18,6 @@ export default function OrderHistory() {
       'Every order you have placed with BookShelf, with its status, contents and total.',
   });
 
-  /*
-   * The line that was missing.
-   *
-   * `useTranslation` was imported at the top of this file and `t(...)` was
-   * called three times in the markup below, but the hook was never called,
-   * so `t` was a free variable and the first JSX expression that reached it
-   * threw `ReferenceError: t is not defined` — on the first render, before
-   * anything painted. See #367.
-   */
   const { t } = useTranslation();
 
   const { orders, loading, error, refetch } = useOrders();
@@ -39,13 +32,6 @@ export default function OrderHistory() {
         <h2>{t('orderHistory.title', 'Your Order History')}</h2>
         {!loading && !error && orderCount > 0 && (
           <p className="order-history__summary" data-testid="order-history-summary">
-            {/*
-              The summary sat next to a translated heading as three untranslated
-              template literals, so the page read as half-Spanish under `es`.
-              i18next picks the singular or plural form from `count`, which is
-              also what makes this correct in languages whose plural rules are
-              not English's.
-            */}
             {t('orderHistory.orderCount', {
               count: orderCount,
               defaultValue_one: '{{count}} order',
@@ -97,7 +83,12 @@ export default function OrderHistory() {
       {!loading && !error && orderCount > 0 && (
         <div className="orders-list">
           {orders.map((order) => (
-            <OrderCard key={order._id ?? order.id} order={order} />
+            <div key={order._id ?? order.id} style={{ marginBottom: '16px' }}>
+              <div style={{ marginBottom: '8px' }}>
+                <StatusBadge status={order.isPaid ? 'success' : 'pending'} text={order.isPaid ? 'Paid & Processing' : 'Pending Payment'} />
+              </div>
+              <OrderCard order={order} />
+            </div>
           ))}
         </div>
       )}

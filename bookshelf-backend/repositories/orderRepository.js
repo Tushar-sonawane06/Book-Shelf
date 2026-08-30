@@ -1,4 +1,5 @@
 import Order from '../models/Order.js';
+import { restoreInventory } from './bookRepository.js';
 
 class OrderRepository {
   async findByUserId(userId) {
@@ -13,42 +14,72 @@ class OrderRepository {
     return await Order.find({}).sort({ createdAt: -1 });
   }
 
+  async findWithPagination({ status, userId, page = 1, limit = 20 } = {}) {
+    const query = {};
+    if (status) {
+      query.status = status;
+    }
+    if (userId) {
+      query.userId = userId;
+    }
+
+    const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
+    const parsedLimit = Math.max(1, Number(limit));
+
+    const [orders, total] = await Promise.all([
+      Order.find(query).sort({ createdAt: -1 }).skip(skip).limit(parsedLimit),
+      Order.countDocuments(query),
+    ]);
+
+    return {
+      orders,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / parsedLimit) || 1,
+    };
+  }
+
+  async updateStatus(id, status) {
+    const order = await Order.findById(id);
+    if (!order) return null;
+
+    const oldStatus = order.status;
+    order.status = status;
+
+    // If order transitioned to canceled and inventory hold was not yet released, refund stock
+    if (status === 'canceled' && oldStatus !== 'canceled' && !order.reservationReleasedAt) {
+      const itemsToRestore = order.items.map((i) => ({
+        bookId: i.bookId,
+        quantity: i.quantity,
+      }));
+      restoreInventory(itemsToRestore);
+      order.reservationReleasedAt = new Date();
+      order.paymentStatus = 'canceled';
+    }
+
+    return await order.save();
+  }
+
+  async cancelOrder(id) {
+    return await this.updateStatus(id, 'canceled');
+  }
+
   /**
    * Orders still holding inventory they have not paid for, reserved before
    * `before`.
-   *
-   * Filtered on `paymentStatus` rather than on `status`: an order sits at
-   * `status: 'pending'` with `paymentStatus: 'paid'` for as long as
-   * fulfilment takes to pick it up, and sweeping that would take stock away
-   * from a customer who has already been charged.
-   *
-   * `reservationReleasedAt: null` also matches documents where the field is
-   * absent, which is every order written before #329.
    */
   async findExpiredReservations({ before, limit = 200 } = {}) {
     return await Order.find({
       reservationReleasedAt: null,
       $or: [
         {
-          // Still ambiguous — the customer may be mid-card-form — so these
-          // only qualify once the hold is older than the TTL.
           paymentStatus: 'pending',
           $or: [
             { reservedAt: { $lte: before } },
-            // Orders from before `reservedAt` existed fall back to
-            // createdAt, so they are swept rather than held forever by a
-            // missing field.
             { reservedAt: { $exists: false }, createdAt: { $lte: before } },
           ],
         },
         {
-          /*
-           * Terminal and unpaid: a declined card, or a canceled intent.
-           * Nobody is going to pay for these, so there is nothing to wait
-           * for. They are here because the webhook marks them and never
-           * calls restoreInventory — the stock was being destroyed just as
-           * permanently as by an abandoned tab.
-           */
           paymentStatus: { $in: ['failed', 'canceled'] },
         },
       ],

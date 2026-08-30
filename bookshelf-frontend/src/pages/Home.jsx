@@ -19,41 +19,18 @@ const ALL_GENRES = ['All', 'Fiction', 'Sci-Fi', 'Mystery', 'Self-Help', 'Poetry'
 
 const PAGE_SIZE = 4;
 
+import BookCarousel from '../components/BookCarousel.jsx';
+import FilterChips from '../components/FilterChips.jsx';
+import QuickActionButtons from '../components/QuickActionButtons.jsx';
+import { useCart } from '../hooks/useCart.js';
+
 export default function Home({ searchQuery: searchQueryProp }) {
   const { t } = useTranslation();
+  const { addToCart } = useCart();
 
-  /*
-   * The filters live in the URL now, not in `useState` here.
-   *
-   * They used to be six pieces of component state, so the address bar read
-   * `/` whether the customer was looking at the whole catalogue or at page 3
-   * of Sci-Fi under ₹300 rated 4 and up. A refresh cleared everything, Back
-   * left the site rather than undoing a filter, a filtered view could not be
-   * shared, and — worst of the four — opening a book and pressing Back
-   * remounted this page with its defaults, so the search text and the page
-   * were gone. See #338.
-   *
-   * There is deliberately no mirrored copy in state. The URL being the only
-   * source of truth is what makes Back and Forward work with nothing to keep
-   * in sync.
-   */
   const { filters, setGenre, setMinPrice, setMaxPrice, setMinRating, setSort, setPage, setSearch, clearFilters } =
     useCatalogFilters();
 
-  /*
-   * The search box lives in the navbar, which the App layout renders, so its
-   * value reaches this page through the outlet context. The prop is kept as
-   * an override so Home can still be rendered standalone in tests.
-   *
-   * Two directions to reconcile, and they are not symmetric:
-   *
-   *   - URL to box, once. Landing on `/?search=mystery` — a bookmark, a
-   *     shared link, a Back — has to put the text back in the input, which
-   *     App owns.
-   *   - Box to URL, on every change. Typing is what drives the search, and it
-   *     is written with `replace: true` so seven keystrokes are one history
-   *     entry rather than seven.
-   */
   const outletContext = useOutletContext();
   const setSearchQuery = outletContext?.setSearchQuery;
   const searchQuery = searchQueryProp ?? outletContext?.searchQuery ?? '';
@@ -68,26 +45,12 @@ export default function Home({ searchQuery: searchQueryProp }) {
 
     hydrated.current = true;
 
-    // Only when the URL has something to say. An empty parameter must not
-    // clear a box the customer has already typed into — which is what
-    // happens on a client-side navigation back to `/`.
     if (filters.search !== '' && filters.search !== searchQuery && setSearchQuery) {
       lastTyped.current = filters.search;
       setSearchQuery(filters.search);
     }
   }, [filters.search, searchQuery, setSearchQuery]);
 
-  /*
-   * Box to URL, on a *change* to the box rather than on any divergence
-   * between the two.
-   *
-   * The difference matters. Writing whenever they differ makes the box
-   * authoritative, so an empty box overwrites a `?search=` that arrived in a
-   * shared link — and "Clear filters", which deliberately keeps the search,
-   * would have it wiped a render later by a box that never caught up. The
-   * URL is the source of truth; the box only pushes when the customer types
-   * into it.
-   */
   useEffect(() => {
     if (searchQuery === lastTyped.current) {
       return;
@@ -97,35 +60,8 @@ export default function Home({ searchQuery: searchQueryProp }) {
     setSearch(searchQuery.trim());
   }, [searchQuery, setSearch]);
 
-  // The search the *grid* is filtered by is the URL's, so a shared link shows
-  // the shared results even before the box has been hydrated.
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  /*
-   * There is deliberately no effect here mirroring the filters into the URL,
-   * and none reading them back out on a history change.
-   *
-   * Two of them used to sit at this point in the file, left over from a
-   * merge, and they referenced thirteen identifiers that this component does not
-   * have: `searchParams`, `setSearchParams`, `buildCatalogQuery`,
-   * `parseCatalogParams`, `selectedGenres`, `setSelectedGenres`, `minPrice`,
-   * `maxPrice`, `minRating`, `activeSort`, `setActiveSort`, `currentPage` and
-   * `setCurrentPage`. The `useState` calls behind those names went away when
-   * the filters moved into the URL; the effects reading them did not. The
-   * first line of the first one was `if (!setSearchParams) return;`, which
-   * throws a ReferenceError rather than returning, so the page died on its
-   * first render and the ErrorBoundary replaced the whole site. See #365.
-   *
-   * Both jobs are `useCatalogFilters`'s, twelve lines above: it reads the
-   * filters out of `useSearchParams` on every render and writes them back
-   * through the same hook, so a history change re-renders with the new values
-   * and there is nothing to synchronise. A mirrored copy in component state
-   * is exactly what that hook was written to remove — restoring one would
-   * bring back the two-sources-of-truth bug from #338 along with the crash.
-   */
-
-  // The active-filter chips said "Min ₹250" whatever the shop was priced in.
-  // See #335.
   const symbol = currencySymbol();
 
   const catalogFilters = useMemo(
@@ -150,21 +86,9 @@ export default function Home({ searchQuery: searchQueryProp }) {
     ]
   );
 
-  /*
-   * Every filter goes to the API, which filters the whole catalogue and then
-   * paginates it. Previously the price, rating and multi-genre filters ran in
-   * a useMemo over the four books the server had already paged down to — so
-   * "Max ₹250" showed "No books found." while a ₹249 book sat on page 2, and
-   * the header still read "16 titles total" above it. See #319.
-   */
   const { books, totalBooks, totalPages, loading, error, reload } =
     useBookCatalog(catalogFilters);
 
-  /*
-   * Home keeps the site's own title when nothing is being searched for — it
-   * is the default, and "BookShelf — BookShelf" would be silly. A search
-   * names itself, so a reader with several tabs open can tell them apart.
-   */
   usePageMetadata({
     title: searchQuery.trim() === '' ? null : `${searchQuery.trim()} — search results`,
     description: null,
@@ -177,31 +101,25 @@ export default function Home({ searchQuery: searchQueryProp }) {
     minRating: filters.minRating,
   });
 
-  /*
-   * Returning to page 1 when the query changes is `useCatalogFilters`'s job
-   * now, applied at the point of change rather than by an effect watching six
-   * dependencies afterwards.
-   *
-   * That matters here: an effect would run on mount too, and stamp on the
-   * page number that came out of the URL. `/?search=mystery&page=2` would
-   * render page 2 for one frame and then jump to page 1, which is exactly the
-   * bug this whole change is about.
-   */
-
   const handlePageChange = (page) => {
     setPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const genreOptions = ALL_GENRES.filter((g) => g !== 'All').map((g) => ({
+    label: g,
+    value: g,
+  }));
+
   return (
     <>
       <Hero />
+
       <main className="catalog" id="catalog">
         <div className="catalog__inner">
 
           <div className="catalog__header">
             <h2 className="catalog__title">{t('home.featuredTitle')}</h2>
-            {/* Counts the filtered set, because the server counted it. */}
             <p className="catalog__count">
               {t('home.titlesTotal', { count: totalBooks })}
             </p>

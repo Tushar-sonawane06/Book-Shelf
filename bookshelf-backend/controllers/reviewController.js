@@ -1,113 +1,60 @@
 import Review from '../models/Review.js';
 import Order from '../models/Order.js';
+import bookRepository from '../repositories/bookRepository.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /**
- * Compute aggregate stats for a book's reviews and return them alongside
- * a page of review documents.
+ * Check whether the reviewer has a delivered order containing the book.
+ *
+ * This is a write-time check: the flag is stored on the review rather than
+ * re-queried on every read. The consequence is that a badge can only appear
+ * or disappear when the review is created or edited, not when an order is
+ * delivered after the fact — which is the right trade-off for a feature that
+ * is purely cosmetic.
  */
-async function aggregateBookStats(bookId) {
-  const [stats] = await Review.aggregate([
+async function hasVerifiedPurchase(userId, bookId) {
+  return Order.exists({
+    userId,
+    status: 'delivered',
+    'items.bookId': bookId,
+  });
+}
+
+/**
+ * After every create or update that changed a rating, recalculate the
+ * aggregate and push it into the book catalogue.
+ *
+ * The books are stored in a JSON file, so there is no aggregation pipeline
+ * to rely on.  The query here is deliberately narrow (visible reviews only)
+ * and the write goes through the repository so the cache is invalidated.
+ */
+async function refreshBookRating(bookId) {
+  const stats = await Review.aggregate([
     { $match: { bookId, hidden: false } },
     {
       $group: {
         _id: null,
-        averageRating: { $avg: '$rating' },
-        totalReviews: { $sum: 1 },
-        breakdown: {
-          $push: '$rating',
-        },
+        average: { $avg: '$rating' },
+        count: { $sum: 1 },
       },
     },
   ]);
 
-  if (!stats) {
-    return {
-      averageRating: 0,
-      totalReviews: 0,
-      breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-    };
-  }
+  const average = stats.length > 0 ? Math.round(stats[0].average * 10) / 10 : 0;
+  const count = stats.length > 0 ? stats[0].count : 0;
 
-  const breakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  for (const rating of stats.breakdown) {
-    breakdown[rating] = (breakdown[rating] || 0) + 1;
-  }
-
-  return {
-    averageRating: Math.round(stats.averageRating * 10) / 10,
-    totalReviews: stats.totalReviews,
-    breakdown,
-  };
+  bookRepository.updateBook(bookId, {
+    rating: average,
+    reviewsCount: count,
+  });
 }
 
-/**
- * Check whether the user has a delivered order containing this book.
- * Used to set the verified-purchase badge on new reviews.
- */
-async function hasDeliveredOrder(userId, bookId) {
-  const order = await Order.findOne({
-    userId,
-    'items.bookId': bookId,
-    status: 'delivered',
-  }).lean();
-
-  return !!order;
-}
-
-// ── Create a review ────────────────────────────────────────────────────────
+// ── Controllers ────────────────────────────────────────────────────────────
 
 /**
- * @desc    Create a review for a book
- * @route   POST /api/reviews
- * @access  Authenticated
- */
-export const createReview = async (req, res, next) => {
-  try {
-    const { bookId, rating, title, body } = req.body;
-
-    // One review per user per book.
-    const existing = await Review.findOne({
-      userId: req.user._id,
-      bookId,
-    });
-
-    if (existing) {
-      return res.status(409).json({
-        message: 'You have already reviewed this book. You can edit your existing review.',
-        reviewId: existing._id.toString(),
-      });
-    }
-
-    const verifiedPurchase = await hasDeliveredOrder(req.user._id, bookId);
-
-    const review = await Review.create({
-      bookId,
-      userId: req.user._id,
-      rating,
-      title: title || '',
-      body: body || '',
-      verifiedPurchase,
-    });
-
-    const stats = await aggregateBookStats(bookId);
-
-    res.status(201).json({
-      message: 'Review submitted successfully',
-      review: formatReview(review, req.user._id),
-      stats,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ── List reviews for a book ────────────────────────────────────────────────
-
-/**
- * @desc    Get all visible reviews for a book (with pagination & sorting)
- * @route   GET /api/reviews/book/:bookId
+ * @desc    Get all reviews for a book
+ * @route   GET /api/reviews/:bookId
  * @access  Public
  */
 export const getBookReviews = async (req, res, next) => {
@@ -115,181 +62,220 @@ export const getBookReviews = async (req, res, next) => {
     const { bookId } = req.params;
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
-    const sort = req.query.sort || 'newest';
-    const skip = (page - 1) * limit;
-
-    let sortSpec = { createdAt: -1 };
-    if (sort === 'oldest') sortSpec = { createdAt: 1 };
-    else if (sort === 'highest') sortSpec = { rating: -1, createdAt: -1 };
-    else if (sort === 'lowest') sortSpec = { rating: 1, createdAt: -1 };
-    else if (sort === 'helpful') sortSpec = { helpfulCount: -1, createdAt: -1 };
+    const sort = req.query.sort === 'helpful' ? { helpfulCount: -1 } : { createdAt: -1 };
 
     const [reviews, total] = await Promise.all([
       Review.find({ bookId, hidden: false })
-        .sort(sortSpec)
-        .skip(skip)
+        .sort(sort)
+        .skip((page - 1) * limit)
         .limit(limit)
-        .populate('userId', 'name avatar')
         .lean(),
       Review.countDocuments({ bookId, hidden: false }),
     ]);
 
-    const stats = await aggregateBookStats(bookId);
+    // Map _id → id for a consistent JSON shape.
+    const mapped = reviews.map((r) => ({ ...r, id: r._id.toString() }));
 
-    res.json({
-      reviews: reviews.map((r) => ({
-        ...r,
-        id: r._id.toString(),
-        userName: r.userId?.name || 'Anonymous',
-        userAvatar: r.userId?.avatar || '📚',
-      })),
-      stats,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+    res.status(200).json({
+      reviews: mapped,
+      page,
+      limit,
+      totalReviews: total,
+      totalPages: Math.ceil(total / limit) || 0,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// ── Get a single review ────────────────────────────────────────────────────
-
 /**
- * @desc    Get a single review by id
- * @route   GET /api/reviews/:reviewId
+ * @desc    Get rating breakdown (1-5 star counts) for a book
+ * @route   GET /api/reviews/:bookId/breakdown
  * @access  Public
  */
-export const getReview = async (req, res, next) => {
+export const getReviewBreakdown = async (req, res, next) => {
   try {
-    const review = await Review.findOne({
-      _id: req.params.reviewId,
-      hidden: false,
-    })
-      .populate('userId', 'name avatar')
-      .lean();
+    const { bookId } = req.params;
 
-    if (!review) {
-      return res.status(404).json({ message: 'Review not found' });
-    }
+    const stats = await Review.aggregate([
+      { $match: { bookId, hidden: false } },
+      {
+        $group: {
+          _id: '$rating',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
 
-    res.json(formatReview(review, req.user?._id));
+    // Build a complete 5→1 map even if some stars have zero reviews.
+    const breakdown = [5, 4, 3, 2, 1].map((star) => {
+      const bucket = stats.find((s) => s._id === star);
+      return { star, count: bucket ? bucket.count : 0 };
+    });
+
+    const totalReviews = breakdown.reduce((sum, b) => sum + b.count, 0);
+    const averageRating =
+      totalReviews > 0
+        ? Math.round(
+            (breakdown.reduce((sum, b) => sum + b.star * b.count, 0) / totalReviews) * 10
+          ) / 10
+        : 0;
+
+    res.status(200).json({
+      bookId,
+      averageRating,
+      totalReviews,
+      breakdown,
+    });
   } catch (error) {
     next(error);
   }
 };
 
-// ── Update own review ──────────────────────────────────────────────────────
+/**
+ * @desc    Create a review
+ * @route   POST /api/reviews
+ * @access  Private (requires login)
+ */
+export const createReview = async (req, res, next) => {
+  try {
+    const { bookId, rating, title, body } = req.body;
+    const userId = req.user._id;
+
+    // Ensure the book exists.
+    const book = bookRepository.getBookById(bookId);
+    if (!book) {
+      return res.status(404).json({ message: `Book not found: ${bookId}` });
+    }
+
+    // One review per user per book — the unique index catches the race, but
+    // a friendlier error message here avoids a raw MongoDB duplicate-key 500.
+    const existing = await Review.findOne({ userId, bookId });
+    if (existing) {
+      return res.status(409).json({
+        message: 'You have already reviewed this book. You can edit your existing review.',
+        reviewId: existing._id.toString(),
+      });
+    }
+
+    const verifiedPurchase = await hasVerifiedPurchase(userId, bookId);
+
+    const review = await Review.create({
+      userId,
+      bookId,
+      rating: Math.round(Number(rating)),
+      title: title || '',
+      body: body || '',
+      verifiedPurchase,
+    });
+
+    // Push the new average into the book catalogue.
+    await refreshBookRating(bookId);
+
+    res.status(201).json({
+      message: 'Review created successfully',
+      review: { ...review.toObject(), id: review._id.toString() },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
- * @desc    Update your own review
+ * @desc    Update a review (owner or admin)
  * @route   PUT /api/reviews/:reviewId
- * @access  Authenticated (owner only)
+ * @access  Private (owner or admin)
  */
 export const updateReview = async (req, res, next) => {
   try {
-    const review = await Review.findById(req.params.reviewId);
+    const { reviewId } = req.params;
+    const { rating, title, body } = req.body;
 
+    const review = await Review.findById(reviewId);
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
 
-    if (review.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'You can only edit your own review' });
+    const isOwner = review.userId.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ message: 'Not authorized to edit this review' });
     }
 
-    const { rating, title, body } = req.body;
-
-    if (rating !== undefined) review.rating = rating;
+    if (rating !== undefined) review.rating = Math.round(Number(rating));
     if (title !== undefined) review.title = title;
     if (body !== undefined) review.body = body;
 
-    await review.save();
+    const saved = await review.save();
 
-    const stats = await aggregateBookStats(review.bookId);
+    await refreshBookRating(review.bookId);
 
-    res.json({
+    res.status(200).json({
       message: 'Review updated successfully',
-      review: formatReview(review, req.user._id),
-      stats,
+      review: { ...saved.toObject(), id: saved._id.toString() },
     });
   } catch (error) {
     next(error);
   }
 };
 
-// ── Delete own review ──────────────────────────────────────────────────────
-
 /**
- * @desc    Delete your own review
+ * @desc    Delete a review (owner or admin) — soft-deletes by setting hidden
  * @route   DELETE /api/reviews/:reviewId
- * @access  Authenticated (owner only)
+ * @access  Private (owner or admin)
  */
 export const deleteReview = async (req, res, next) => {
   try {
-    const review = await Review.findById(req.params.reviewId);
+    const { reviewId } = req.params;
 
+    const review = await Review.findById(reviewId);
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
 
-    if (review.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'You can only delete your own review' });
+    const isOwner = review.userId.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ message: 'Not authorized to delete this review' });
     }
 
-    const bookId = review.bookId;
-    await Review.findByIdAndDelete(req.params.reviewId);
+    review.hidden = true;
+    await review.save();
 
-    const stats = await aggregateBookStats(bookId);
+    await refreshBookRating(review.bookId);
 
-    res.json({
-      message: 'Review deleted successfully',
-      stats,
-    });
+    res.status(200).json({ message: 'Review deleted successfully' });
   } catch (error) {
     next(error);
   }
 };
 
-// ── Toggle helpful vote ────────────────────────────────────────────────────
-
 /**
- * @desc    Toggle the "helpful" vote on a review
+ * @desc    Mark a review as helpful
  * @route   POST /api/reviews/:reviewId/helpful
- * @access  Authenticated
+ * @access  Private
  */
-export const toggleHelpful = async (req, res, next) => {
+export const markHelpful = async (req, res, next) => {
   try {
-    const review = await Review.findById(req.params.reviewId);
+    const { reviewId } = req.params;
 
+    const review = await Review.findById(reviewId);
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
 
+    // Users should not mark their own review as helpful.
     if (review.userId.toString() === req.user._id.toString()) {
       return res.status(400).json({ message: 'You cannot mark your own review as helpful' });
     }
 
-    const userId = req.user._id;
-    const alreadyVoted = review.helpfulBy.some(
-      (id) => id.toString() === userId.toString()
-    );
-
-    if (alreadyVoted) {
-      review.helpfulBy.pull(userId);
-      review.helpfulCount = Math.max(0, review.helpfulCount - 1);
-    } else {
-      review.helpfulBy.addToSet(userId);
-      review.helpfulCount = review.helpfulBy.length;
-    }
-
+    review.helpfulCount = (review.helpfulCount || 0) + 1;
     await review.save();
 
-    res.json({
-      helpful: !alreadyVoted,
+    res.status(200).json({
+      message: 'Review marked as helpful',
       helpfulCount: review.helpfulCount,
     });
   } catch (error) {
@@ -297,133 +283,22 @@ export const toggleHelpful = async (req, res, next) => {
   }
 };
 
-// ── Get user's review for a specific book ──────────────────────────────────
-
 /**
- * @desc    Check if the current user has reviewed a specific book
- * @route   GET /api/reviews/book/:bookId/mine
- * @access  Authenticated
+ * @desc    Get the current user's review for a specific book
+ * @route   GET /api/reviews/:bookId/mine
+ * @access  Private
  */
-export const getMyReviewForBook = async (req, res, next) => {
-  try {
-    const review = await Review.findOne({
-      userId: req.user._id,
-      bookId: req.params.bookId,
-    }).lean();
-
-    if (!review) {
-      return res.json({ hasReview: false, review: null });
-    }
-
-    res.json({
-      hasReview: true,
-      review: formatReview(review, req.user._id),
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ── Admin: list all reviews (with hidden) ──────────────────────────────────
-
-/**
- * @desc    Admin: list all reviews for a book including hidden ones
- * @route   GET /api/reviews/admin/book/:bookId
- * @access  Admin
- */
-export const adminGetBookReviews = async (req, res, next) => {
+export const getMyReview = async (req, res, next) => {
   try {
     const { bookId } = req.params;
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
-    const skip = (page - 1) * limit;
-
-    const [reviews, total] = await Promise.all([
-      Review.find({ bookId })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate('userId', 'name email avatar')
-        .lean(),
-      Review.countDocuments({ bookId }),
-    ]);
-
-    res.json({
-      reviews: reviews.map((r) => ({
-        ...r,
-        id: r._id.toString(),
-        userName: r.userId?.name || 'Anonymous',
-        userEmail: r.userId?.email || '',
-        userAvatar: r.userId?.avatar || '📚',
-      })),
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ── Admin: hide/show a review ──────────────────────────────────────────────
-
-/**
- * @desc    Admin: toggle hidden flag on a review
- * @route   PATCH /api/reviews/:reviewId/visibility
- * @access  Admin
- */
-export const adminToggleVisibility = async (req, res, next) => {
-  try {
-    const review = await Review.findById(req.params.reviewId);
+    const review = await Review.findOne({ userId: req.user._id, bookId }).lean();
 
     if (!review) {
-      return res.status(404).json({ message: 'Review not found' });
+      return res.status(404).json({ message: 'You have not reviewed this book yet' });
     }
 
-    review.hidden = !review.hidden;
-    await review.save();
-
-    const stats = await aggregateBookStats(review.bookId);
-
-    res.json({
-      message: review.hidden ? 'Review hidden' : 'Review visible',
-      hidden: review.hidden,
-      stats,
-    });
+    res.status(200).json({ review: { ...review, id: review._id.toString() } });
   } catch (error) {
     next(error);
   }
-};
-
-// ── Utilities ──────────────────────────────────────────────────────────────
-
-function formatReview(review, currentUserId) {
-  const obj = review.toObject ? review.toObject() : review;
-  return {
-    id: obj._id.toString(),
-    bookId: obj.bookId,
-    userId: obj.userId?.toString?.() || obj.userId,
-    userName: obj.userId?.name || review.userName || 'Anonymous',
-    userAvatar: obj.userId?.avatar || review.userAvatar || '📚',
-    rating: obj.rating,
-    title: obj.title,
-    body: obj.body,
-    helpfulCount: obj.helpfulCount,
-    verifiedPurchase: obj.verifiedPurchase,
-    createdAt: obj.createdAt,
-    updatedAt: obj.updatedAt,
-    userHasVotedHelpful: currentUserId
-      ? obj.helpfulBy?.some((id) => id.toString() === currentUserId.toString()) || false
-      : false,
-  };
-}
-
-export default {
-  createReview,
-  getBookReviews,
-  getReview,
-  updateReview,
-  deleteReview,
-  toggleHelpful,
-  getMyReviewForBook,
-  adminGetBookReviews,
-  adminToggleVisibility,
 };

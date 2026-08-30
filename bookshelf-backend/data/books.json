@@ -5,10 +5,11 @@
     "author": "M. Arora",
     "genre": "Fiction",
     "price": 349,
-    "rating": 4.5,
+    "rating": 0,
     "cover": "#7A2E2E",
     "inventory": 8,
-    "__v": 2
+    "__v": 12,
+    "reviewsCount": 0
   },
   {
     "id": "b2",

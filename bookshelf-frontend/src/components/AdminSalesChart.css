@@ -1,0 +1,161 @@
+/* ── Admin Sales Chart ──────────────────────────────────────────────── */
+
+.admin-chart {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+}
+
+.admin-chart__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.admin-chart__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text, #111827);
+}
+
+.admin-chart__period {
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  background: var(--color-surface, #fff);
+  color: var(--color-text, #111827);
+  cursor: pointer;
+}
+
+/* Bars */
+
+.admin-chart__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 180px;
+  padding-top: 1.5rem; /* room for tooltip */
+}
+
+.admin-chart__col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+  position: relative;
+}
+
+.admin-chart__bar-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.admin-chart__bar {
+  width: 100%;
+  min-height: 2px;
+  background: var(--color-primary, #6366f1);
+  border-radius: 4px 4px 0 0;
+  transition: height 0.4s ease;
+  position: relative;
+}
+
+.admin-chart__bar:hover {
+  background: var(--color-primary-hover, #4f46e5);
+}
+
+.admin-chart__tooltip {
+  position: absolute;
+  top: -0.25rem;
+  font-size: 0.65rem;
+  color: var(--color-text-muted, #6b7280);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.admin-chart__col:hover .admin-chart__tooltip {
+  opacity: 1;
+}
+
+.admin-chart__date-label {
+  font-size: 0.6rem;
+  color: var(--color-text-muted, #9ca3af);
+  margin-top: 0.3rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* Loading skeleton */
+
+.admin-chart__loading {
+  height: 180px;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.admin-chart__bar-skeleton {
+  flex: 1;
+  height: 60%;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton, #e5e7eb) 25%,
+    var(--color-skeleton-shine, #f3f4f6) 50%,
+    var(--color-skeleton, #e5e7eb) 75%
+  );
+  background-size: 200% 100%;
+  animation: admin-chart-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes admin-chart-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.admin-chart__error {
+  color: var(--color-error, #dc2626);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.admin-chart__empty {
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+/* ── Dark mode ──────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .admin-chart {
+    background: var(--color-surface-dark, #1f2937);
+    border-color: var(--color-border-dark, #374151);
+  }
+
+  .admin-chart__period {
+    background: var(--color-surface-dark, #1f2937);
+    border-color: var(--color-border-dark, #4b5563);
+    color: var(--color-text-dark, #f9fafb);
+  }
+
+  .admin-chart__bar {
+    background: var(--color-primary-dark, #818cf8);
+  }
+}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './GuestCheckoutForm.css';
 
-export default function GuestCheckoutForm({ onOrderComplete }) {
+export default function GuestCheckoutForm({ onOrderComplete, onBack }) {
   const [formData, setFormData] = useState({
     email: '',
     fullName: '',
@@ -54,6 +54,18 @@ export default function GuestCheckoutForm({ onOrderComplete }) {
     <div className="guest-checkout">
       <h2 className="guest-checkout__title">Guest Checkout</h2>
       <p className="guest-checkout__subtitle">Please enter your shipping and contact information.</p>
+
+      {/*
+        A way back. The guest form was a one-way door: once the page switched
+        to this view the only exits were the browser's back button — which
+        leaves the route unchanged, so it goes to whatever preceded /checkout
+        rather than to the address step — and the navbar.
+      */}
+      {onBack && (
+        <button type="button" className="guest-checkout__back" onClick={onBack}>
+          ← Back to checkout options
+        </button>
+      )}
       
       <form className="guest-checkout__form" onSubmit={handleSubmit}>
         <div className="form-group">

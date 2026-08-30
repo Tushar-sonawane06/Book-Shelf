@@ -1,25 +1,28 @@
 import mongoose from 'mongoose';
 
 /**
- * A reader review attached to a single book.
+ * Review schema for the BookShelf reviews & ratings system.
  *
- * One review per user per book, enforced by a compound unique index.
- * The `status` field lets a future moderation queue surface without a schema
- * change — right now everything is auto-approved, but the column is already
- * there for when someone wants to build admin review management.
+ * Each review links a user to a book and records their rating (1-5 stars)
+ * and optional text. A unique compound index on (userId, bookId) ensures
+ * a user can only review a book once — duplicate reviews are rejected at
+ * the database level rather than relying on a race-prone application check.
+ *
+ * The `verifiedPurchase` flag is set when the reviewer has a delivered order
+ * containing this book. It lets the UI surface a badge without a separate
+ * query against the orders collection on every render.
  */
 const reviewSchema = new mongoose.Schema(
   {
-    bookId: {
-      type: String,
-      required: true,
-      trim: true,
-      index: true,
-    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    bookId: {
+      type: String,
+      required: true,
+      trim: true,
     },
     rating: {
       type: Number,
@@ -36,39 +39,30 @@ const reviewSchema = new mongoose.Schema(
     body: {
       type: String,
       trim: true,
-      maxlength: 5000,
+      maxlength: 2000,
       default: '',
     },
     /**
-     * Soft-delete flag. A review that is hidden is not returned to the public
-     * API but still exists for admin audit trails and aggregate recalculation.
+     * Set to true when the reviewer has a delivered order containing
+     * this book. Computed at creation time and never changed — if the
+     * order is later returned the badge is arguably still valid.
+     */
+    verifiedPurchase: {
+      type: Boolean,
+      default: false,
+    },
+    /**
+     * Soft-delete flag. The review stays in the database (and still
+     * affects the average rating) until the user or an admin removes it.
      */
     hidden: {
       type: Boolean,
       default: false,
     },
-    /**
-     * Tracks which other users clicked "helpful" on this review.
-     * Stored as an array of user ids — small enough for a bookshop, and it
-     * makes toggling a vote trivial.
-     */
-    helpfulBy: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
     helpfulCount: {
       type: Number,
       default: 0,
-    },
-    /**
-     * Whether the reviewer purchased this book through the platform.
-     * Set at review-creation time by checking the user's order history.
-     */
-    verifiedPurchase: {
-      type: Boolean,
-      default: false,
+      min: 0,
     },
   },
   {
@@ -77,11 +71,13 @@ const reviewSchema = new mongoose.Schema(
 );
 
 // One review per user per book.
-reviewSchema.index({ bookId: 1, userId: 1 }, { unique: true });
-// Public listing: visible reviews for a book, newest first.
+reviewSchema.index({ userId: 1, bookId: 1 }, { unique: true });
+
+// The main read path: all visible reviews for a book, newest first.
 reviewSchema.index({ bookId: 1, hidden: 1, createdAt: -1 });
-// Aggregate helper: compute average rating for a book.
-reviewSchema.index({ bookId: 1, hidden: 1, rating: 1 });
+
+// Helpful-count queries (top reviews).
+reviewSchema.index({ bookId: 1, hidden: 1, helpfulCount: -1 });
 
 const Review = mongoose.model('Review', reviewSchema);
 

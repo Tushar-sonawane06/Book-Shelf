@@ -135,4 +135,38 @@ export async function getGenres({ signal } = {}) {
   return response.data?.genres ?? [];
 }
 
-export default { getBookById, getBooks, getBooksByIds, getGenres, BookNotFoundError };
+/** Create a new book listing (admin only). */
+export async function createBook(bookData) {
+  const response = await api.post('/books', bookData);
+  return response.data;
+}
+
+/** Update an existing book listing by id (admin only). */
+export async function updateBook(id, bookData) {
+  const response = await api.put(`/books/${encodeURIComponent(id)}`, bookData);
+  return response.data;
+}
+
+/** Delete a book listing by id (admin only). */
+export async function deleteBook(id) {
+  const response = await api.delete(`/books/${encodeURIComponent(id)}`);
+  return response.data;
+}
+
+/** Patch stock/inventory for a book by id (admin only). */
+export async function updateBookStock(id, stockData) {
+  const response = await api.patch(`/books/${encodeURIComponent(id)}/stock`, stockData);
+  return response.data;
+}
+
+export default {
+  getBookById,
+  getBooks,
+  getBooksByIds,
+  getGenres,
+  createBook,
+  updateBook,
+  deleteBook,
+  updateBookStock,
+  BookNotFoundError,
+};

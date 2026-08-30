@@ -1,155 +1,166 @@
 import { useState, useEffect, useCallback } from 'react';
+
 import ReviewCard from './ReviewCard.jsx';
-import './ReviewList.css';
+import ReviewSummary from './ReviewSummary.jsx';
+import { getBookReviews, getReviewBreakdown, markReviewHelpful } from '../services/reviewService.js';
 
 /**
- * Paginated, sortable list of reviews for a book.
- *
- * Fetches pages from the review service and renders them as ReviewCards.
- * Sort controls are tabs along the top. The component calls back to the
- * parent whenever the aggregate stats change (e.g. after a helpful vote
- * updates the count) so the summary section stays in sync.
+ * ReviewList — fetches and renders the full review section for a book:
+ *   1. Summary card (average + breakdown)
+ *   2. Sort toggle (newest / most helpful)
+ *   3. Paginated review cards
+ *   4. Empty state when there are no reviews yet
  */
-export default function ReviewList({
-  bookId,
-  currentUserId,
-  onStatsChange,
-  refreshKey = 0,
-  onHelpfulToggle,
-}) {
+export default function ReviewList({ bookId, currentUserId }) {
   const [reviews, setReviews] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [breakdownData, setBreakdownData] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalReviews, setTotalReviews] = useState(0);
   const [sort, setSort] = useState('newest');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadReviews = useCallback(async (page = 1, sortKey = sort) => {
+  const LIMIT = 5;
+
+  const fetchReviews = useCallback(async () => {
+    if (!bookId) return;
     setLoading(true);
     setError('');
+
     try {
-      const mod = await import('../services/reviewService.js');
-      const data = await mod.getBookReviews(bookId, { page, limit: 10, sort: sortKey });
-      setReviews(data.reviews || []);
-      setStats(data.stats || null);
-      setPagination(data.pagination || { page: 1, totalPages: 1, total: 0 });
-      if (data.stats && onStatsChange) onStatsChange(data.stats);
+      const [reviewsData, breakdownResult] = await Promise.all([
+        getBookReviews(bookId, { page, limit: LIMIT, sort }),
+        page === 1 ? getReviewBreakdown(bookId) : null,
+      ]);
+
+      setReviews(reviewsData.reviews || []);
+      setTotalPages(reviewsData.totalPages || 1);
+      setTotalReviews(reviewsData.totalReviews || 0);
+
+      if (breakdownResult) {
+        setBreakdownData(breakdownResult);
+      }
     } catch (err) {
-      setError(err?.message || 'Failed to load reviews');
+      setError(err.message || 'Failed to load reviews');
     } finally {
       setLoading(false);
     }
-  }, [bookId, sort, onStatsChange]);
+  }, [bookId, page, sort]);
 
   useEffect(() => {
-    loadReviews(1, sort);
-  }, [bookId, sort, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchReviews();
+  }, [fetchReviews]);
 
-  function handleSortChange(newSort) {
-    setSort(newSort);
-  }
+  // Reset to page 1 when sort changes.
+  useEffect(() => {
+    setPage(1);
+  }, [sort]);
 
-  function handlePageChange(page) {
-    loadReviews(page, sort);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  const sortOptions = [
-    { key: 'newest', label: 'Newest' },
-    { key: 'oldest', label: 'Oldest' },
-    { key: 'highest', label: 'Highest' },
-    { key: 'lowest', label: 'Lowest' },
-    { key: 'helpful', label: 'Most Helpful' },
-  ];
+  const handleHelpful = async (reviewId) => {
+    const result = await markReviewHelpful(reviewId);
+    // Optimistically update the local review list.
+    setReviews((prev) =>
+      prev.map((r) =>
+        r.id === reviewId
+          ? { ...r, helpfulCount: result.helpfulCount || r.helpfulCount + 1 }
+          : r
+      )
+    );
+    return result;
+  };
 
   return (
     <section className="review-list" aria-label="Book reviews">
-      {/* Sort tabs */}
-      <div className="review-list__toolbar">
-        <span className="review-list__count">
-          {pagination.total} review{pagination.total !== 1 ? 's' : ''}
-        </span>
-        <div className="review-list__sort-tabs" role="tablist" aria-label="Sort reviews">
-          {sortOptions.map((opt) => (
-            <button
-              key={opt.key}
-              type="button"
-              role="tab"
-              aria-selected={sort === opt.key}
-              className={`review-list__sort-tab ${sort === opt.key ? 'review-list__sort-tab--active' : ''}`}
-              onClick={() => handleSortChange(opt.key)}
-            >
-              {opt.label}
-            </button>
-          ))}
+      <div className="review-list__header">
+        <h2 className="review-list__title">Customer Reviews</h2>
+        <div className="review-list__sort">
+          <label htmlFor="review-sort" className="review-list__sort-label">Sort by:</label>
+          <select
+            id="review-sort"
+            className="review-list__sort-select"
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+          >
+            <option value="newest">Newest</option>
+            <option value="helpful">Most Helpful</option>
+          </select>
         </div>
       </div>
 
+      {/* Summary — only on page 1 of newest sort */}
+      {page === 1 && sort === 'newest' && breakdownData && (
+        <ReviewSummary
+          averageRating={breakdownData.averageRating}
+          totalReviews={breakdownData.totalReviews}
+          breakdown={breakdownData.breakdown}
+        />
+      )}
+
       {/* Loading */}
       {loading && (
-        <div className="review-list__loading">
-          <div className="review-list__spinner" />
-          <span>Loading reviews…</span>
+        <div className="review-list__loading" aria-busy="true">
+          <div className="review-list__skeleton" />
+          <div className="review-list__skeleton review-list__skeleton--short" />
         </div>
       )}
 
       {/* Error */}
-      {error && !loading && (
-        <div className="review-list__error" role="alert">
-          {error}
-          <button type="button" onClick={() => loadReviews(pagination.page, sort)}>
-            Retry
+      {!loading && error && (
+        <div className="review-list__error">
+          <p>{error}</p>
+          <button type="button" className="review-list__retry" onClick={fetchReviews}>
+            Try again
           </button>
         </div>
       )}
 
-      {/* Empty */}
+      {/* Empty state */}
       {!loading && !error && reviews.length === 0 && (
         <div className="review-list__empty">
-          <span className="review-list__empty-icon">📝</span>
           <p>No reviews yet. Be the first to share your thoughts!</p>
         </div>
       )}
 
       {/* Reviews */}
       {!loading && !error && reviews.length > 0 && (
-        <div className="review-list__items">
-          {reviews.map((review) => (
-            <ReviewCard
-              key={review.id}
-              review={review}
-              currentUserId={currentUserId}
-              onHelpfulToggle={onHelpfulToggle}
-            />
-          ))}
-        </div>
-      )}
+        <>
+          <div className="review-list__cards">
+            {reviews.map((review) => (
+              <ReviewCard
+                key={review.id}
+                review={review}
+                currentUserId={currentUserId}
+                onHelpful={handleHelpful}
+              />
+            ))}
+          </div>
 
-      {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <nav className="review-list__pagination" aria-label="Review pages">
-          <button
-            type="button"
-            className="review-list__page-btn"
-            disabled={pagination.page <= 1}
-            onClick={() => handlePageChange(pagination.page - 1)}
-            aria-label="Previous page"
-          >
-            ← Prev
-          </button>
-          <span className="review-list__page-info">
-            Page {pagination.page} of {pagination.totalPages}
-          </span>
-          <button
-            type="button"
-            className="review-list__page-btn"
-            disabled={pagination.page >= pagination.totalPages}
-            onClick={() => handlePageChange(pagination.page + 1)}
-            aria-label="Next page"
-          >
-            Next →
-          </button>
-        </nav>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <nav className="review-list__pagination" aria-label="Review pages">
+              <button
+                type="button"
+                className="review-list__page-btn"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+              >
+                ← Previous
+              </button>
+              <span className="review-list__page-info">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                className="review-list__page-btn"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+              >
+                Next →
+              </button>
+            </nav>
+          )}
+        </>
       )}
     </section>
   );

@@ -248,6 +248,10 @@ describe('priceOrder', () => {
 
     assert.deepEqual(minorUnits, {
       subtotal: 104700,
+      // Zero rather than absent when no coupon was applied, so a caller never
+      // has to tell "no discount" from "this response predates discounts".
+      // See #418.
+      discount: 0,
       tax: 5235,
       shipping: 4900,
       total: 114835,
