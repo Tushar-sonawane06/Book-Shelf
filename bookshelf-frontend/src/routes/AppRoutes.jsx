@@ -19,6 +19,7 @@ import PrivacyPolicy from '../pages/PrivacyPolicy.jsx';
 import TermsOfService from '../pages/TermsOfService.jsx';
 import NotFound from '../pages/NotFound.jsx';
 import BookReviewsPage from '../pages/BookReviewsPage.jsx';
+import ReadingListPage from '../pages/ReadingListPage.jsx';
 
 /**
  * The single route table for the app.
@@ -120,6 +121,15 @@ export default function AppRoutes() {
         />
 
         <Route path="book/:id/reviews" element={<BookReviewsPage />} />
+
+        <Route
+          path="reading-list"
+          element={
+            <ProtectedRoute>
+              <ReadingListPage />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="*" element={<NotFound />} />
       </Route>
