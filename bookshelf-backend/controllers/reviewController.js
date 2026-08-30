@@ -1,217 +1,104 @@
-import mongoose from 'mongoose';
 import Review from '../models/Review.js';
 import Order from '../models/Order.js';
+import bookRepository from '../repositories/bookRepository.js';
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 /**
- * Fetch paginated reviews for a book.
+ * Check whether the reviewer has a delivered order containing the book.
  *
- * Query params:
- *   page   (default 1)
- *   limit  (default 10, max 50)
- *   sort   "newest" | "oldest" | "highest" | "lowest" | "helpful"
+ * This is a write-time check: the flag is stored on the review rather than
+ * re-queried on every read. The consequence is that a badge can only appear
+ * or disappear when the review is created or edited, not when an order is
+ * delivered after the fact — which is the right trade-off for a feature that
+ * is purely cosmetic.
  */
-export const getReviewsForBook = async (req, res) => {
+async function hasVerifiedPurchase(userId, bookId) {
+  return Order.exists({
+    userId,
+    status: 'delivered',
+    'items.bookId': bookId,
+  });
+}
+
+/**
+ * After every create or update that changed a rating, recalculate the
+ * aggregate and push it into the book catalogue.
+ *
+ * The books are stored in a JSON file, so there is no aggregation pipeline
+ * to rely on.  The query here is deliberately narrow (visible reviews only)
+ * and the write goes through the repository so the cache is invalidated.
+ */
+async function refreshBookRating(bookId) {
+  const stats = await Review.aggregate([
+    { $match: { bookId, hidden: false } },
+    {
+      $group: {
+        _id: null,
+        average: { $avg: '$rating' },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const average = stats.length > 0 ? Math.round(stats[0].average * 10) / 10 : 0;
+  const count = stats.length > 0 ? stats[0].count : 0;
+
+  bookRepository.updateBook(bookId, {
+    rating: average,
+    reviewsCount: count,
+  });
+}
+
+// ── Controllers ────────────────────────────────────────────────────────────
+
+/**
+ * @desc    Get all reviews for a book
+ * @route   GET /api/reviews/:bookId
+ * @access  Public
+ */
+export const getBookReviews = async (req, res, next) => {
   try {
     const { bookId } = req.params;
-
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
-    const sortParam = req.query.sort || 'newest';
-
-    const sortMap = {
-      newest: { createdAt: -1 },
-      oldest: { createdAt: 1 },
-      highest: { rating: -1, createdAt: -1 },
-      lowest: { rating: 1, createdAt: -1 },
-      helpful: { helpfulCount: -1, createdAt: -1 },
-    };
-
-    const sort = sortMap[sortParam] || sortMap.newest;
+    const sort = req.query.sort === 'helpful' ? { helpfulCount: -1 } : { createdAt: -1 };
 
     const [reviews, total] = await Promise.all([
-      Review.find({ book: bookId })
-        .populate('user', 'name avatar')
+      Review.find({ bookId, hidden: false })
         .sort(sort)
         .skip((page - 1) * limit)
         .limit(limit)
         .lean(),
-      Review.countDocuments({ book: bookId }),
+      Review.countDocuments({ bookId, hidden: false }),
     ]);
 
-    res.json({
-      reviews,
+    // Map _id → id for a consistent JSON shape.
+    const mapped = reviews.map((r) => ({ ...r, id: r._id.toString() }));
+
+    res.status(200).json({
+      reviews: mapped,
       page,
       limit,
-      total,
-      totalPages: Math.ceil(total / limit),
+      totalReviews: total,
+      totalPages: Math.ceil(total / limit) || 0,
     });
   } catch (error) {
-    console.error('[ReviewController] getReviewsForBook error:', error);
-    res.status(500).json({ message: 'Failed to fetch reviews' });
+    next(error);
   }
 };
 
 /**
- * Create or update a review.
- *
- * Uses upsert: if the user already reviewed this book the rating, title and
- * body are replaced. The `editedAt` timestamp is set on updates so the UI
- * can show "edited".
- *
- * Before writing, checks whether the user has a delivered order containing
- * this book to set `verifiedPurchase`.
+ * @desc    Get rating breakdown (1-5 star counts) for a book
+ * @route   GET /api/reviews/:bookId/breakdown
+ * @access  Public
  */
-export const createOrUpdateReview = async (req, res) => {
-  try {
-    const { bookId } = req.params;
-    const userId = req.user._id;
-    const { rating, title, body } = req.body;
-
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ message: 'Rating must be between 1 and 5' });
-    }
-
-    if (title && title.length > 120) {
-      return res
-        .status(400)
-        .json({ message: 'Review title cannot exceed 120 characters' });
-    }
-
-    if (body && body.length > 2000) {
-      return res
-        .status(400)
-        .json({ message: 'Review body cannot exceed 2000 characters' });
-    }
-
-    // Check for verified purchase.
-    const hasPurchased = await Order.exists({
-      user: userId,
-      'lines.book': bookId,
-      status: { $in: ['paid', 'shipped', 'delivered'] },
-    });
-
-    const existing = await Review.findOne({ book: bookId, user: userId });
-
-    let review;
-
-    if (existing) {
-      existing.rating = rating;
-      existing.title = title || '';
-      existing.body = body || '';
-      existing.verifiedPurchase = !!hasPurchased;
-      existing.editedAt = new Date();
-      review = await existing.save();
-    } else {
-      review = await Review.create({
-        book: bookId,
-        user: userId,
-        rating,
-        title: title || '',
-        body: body || '',
-        verifiedPurchase: !!hasPurchased,
-      });
-    }
-
-    const populated = await review.populate('user', 'name avatar');
-
-    res.status(existing ? 200 : 201).json(populated.toJSON());
-  } catch (error) {
-    console.error('[ReviewController] createOrUpdateReview error:', error);
-
-    if (error.code === 11000) {
-      return res.status(409).json({ message: 'You have already reviewed this book' });
-    }
-
-    res.status(500).json({ message: 'Failed to save review' });
-  }
-};
-
-/**
- * Delete a review.
- *
- * Only the review's own author may delete it. Admins are not given delete
- * power here; that is a separate moderation concern.
- */
-export const deleteReview = async (req, res) => {
-  try {
-    const { reviewId } = req.params;
-    const userId = req.user._id;
-
-    const review = await Review.findById(reviewId);
-
-    if (!review) {
-      return res.status(404).json({ message: 'Review not found' });
-    }
-
-    if (review.user.toString() !== userId.toString()) {
-      return res.status(403).json({ message: 'Not authorised to delete this review' });
-    }
-
-    await Review.findByIdAndDelete(reviewId);
-
-    res.json({ message: 'Review deleted' });
-  } catch (error) {
-    console.error('[ReviewController] deleteReview error:', error);
-    res.status(500).json({ message: 'Failed to delete review' });
-  }
-};
-
-/**
- * Toggle the "helpful" vote.
- *
- * If the requesting user has already voted, the vote is removed;
- * otherwise it is added. The `helpfulBy` array prevents double-counting.
- *
- * Returns the new helpful count.
- */
-export const toggleHelpful = async (req, res) => {
-  try {
-    const { reviewId } = req.params;
-    const userId = req.user._id;
-
-    const review = await Review.findById(reviewId);
-
-    if (!review) {
-      return res.status(404).json({ message: 'Review not found' });
-    }
-
-    const alreadyVoted = review.helpfulBy.some(
-      (id) => id.toString() === userId.toString()
-    );
-
-    if (alreadyVoted) {
-      review.helpfulBy.pull(userId);
-      review.helpfulCount = Math.max(0, review.helpfulCount - 1);
-    } else {
-      review.helpfulBy.addToSet(userId);
-      review.helpfulCount += 1;
-    }
-
-    await review.save();
-
-    res.json({
-      helpfulCount: review.helpfulCount,
-      voted: !alreadyVoted,
-    });
-  } catch (error) {
-    console.error('[ReviewController] toggleHelpful error:', error);
-    res.status(500).json({ message: 'Failed to update helpful vote' });
-  }
-};
-
-/**
- * Aggregate review statistics for a book.
- *
- * Returns the average rating, total count, and a breakdown of how many
- * reviews fall into each star level (1–5). The frontend uses this for a
- * rating-distribution bar chart next to the detail page.
- */
-export const getReviewStats = async (req, res) => {
+export const getReviewBreakdown = async (req, res, next) => {
   try {
     const { bookId } = req.params;
 
     const stats = await Review.aggregate([
-      { $match: { book: reviewObjectId(bookId) } },
+      { $match: { bookId, hidden: false } },
       {
         $group: {
           _id: '$rating',
@@ -220,38 +107,198 @@ export const getReviewStats = async (req, res) => {
       },
     ]);
 
-    const breakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    let total = 0;
-    let sum = 0;
+    // Build a complete 5→1 map even if some stars have zero reviews.
+    const breakdown = [5, 4, 3, 2, 1].map((star) => {
+      const bucket = stats.find((s) => s._id === star);
+      return { star, count: bucket ? bucket.count : 0 };
+    });
 
-    for (const bucket of stats) {
-      const rating = bucket._id;
-      breakdown[rating] = bucket.count;
-      total += bucket.count;
-      sum += rating * bucket.count;
-    }
+    const totalReviews = breakdown.reduce((sum, b) => sum + b.count, 0);
+    const averageRating =
+      totalReviews > 0
+        ? Math.round(
+            (breakdown.reduce((sum, b) => sum + b.star * b.count, 0) / totalReviews) * 10
+          ) / 10
+        : 0;
 
-    const average = total > 0 ? Math.round((sum / total) * 10) / 10 : 0;
-
-    res.json({
-      average,
-      total,
+    res.status(200).json({
+      bookId,
+      averageRating,
+      totalReviews,
       breakdown,
     });
   } catch (error) {
-    console.error('[ReviewController] getReviewStats error:', error);
-    res.status(500).json({ message: 'Failed to fetch review statistics' });
+    next(error);
   }
 };
 
 /**
- * Helper: cast a string to an ObjectId for aggregation pipelines.
- * A bad id should produce an empty match, not crash the server.
+ * @desc    Create a review
+ * @route   POST /api/reviews
+ * @access  Private (requires login)
  */
-function reviewObjectId(id) {
+export const createReview = async (req, res, next) => {
   try {
-    return new mongoose.Types.ObjectId(id);
-  } catch {
-    return null;
+    const { bookId, rating, title, body } = req.body;
+    const userId = req.user._id;
+
+    // Ensure the book exists.
+    const book = bookRepository.getBookById(bookId);
+    if (!book) {
+      return res.status(404).json({ message: `Book not found: ${bookId}` });
+    }
+
+    // One review per user per book — the unique index catches the race, but
+    // a friendlier error message here avoids a raw MongoDB duplicate-key 500.
+    const existing = await Review.findOne({ userId, bookId });
+    if (existing) {
+      return res.status(409).json({
+        message: 'You have already reviewed this book. You can edit your existing review.',
+        reviewId: existing._id.toString(),
+      });
+    }
+
+    const verifiedPurchase = await hasVerifiedPurchase(userId, bookId);
+
+    const review = await Review.create({
+      userId,
+      bookId,
+      rating: Math.round(Number(rating)),
+      title: title || '',
+      body: body || '',
+      verifiedPurchase,
+    });
+
+    // Push the new average into the book catalogue.
+    await refreshBookRating(bookId);
+
+    res.status(201).json({
+      message: 'Review created successfully',
+      review: { ...review.toObject(), id: review._id.toString() },
+    });
+  } catch (error) {
+    next(error);
   }
-}
+};
+
+/**
+ * @desc    Update a review (owner or admin)
+ * @route   PUT /api/reviews/:reviewId
+ * @access  Private (owner or admin)
+ */
+export const updateReview = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+    const { rating, title, body } = req.body;
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    const isOwner = review.userId.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ message: 'Not authorized to edit this review' });
+    }
+
+    if (rating !== undefined) review.rating = Math.round(Number(rating));
+    if (title !== undefined) review.title = title;
+    if (body !== undefined) review.body = body;
+
+    const saved = await review.save();
+
+    await refreshBookRating(review.bookId);
+
+    res.status(200).json({
+      message: 'Review updated successfully',
+      review: { ...saved.toObject(), id: saved._id.toString() },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delete a review (owner or admin) — soft-deletes by setting hidden
+ * @route   DELETE /api/reviews/:reviewId
+ * @access  Private (owner or admin)
+ */
+export const deleteReview = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    const isOwner = review.userId.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ message: 'Not authorized to delete this review' });
+    }
+
+    review.hidden = true;
+    await review.save();
+
+    await refreshBookRating(review.bookId);
+
+    res.status(200).json({ message: 'Review deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Mark a review as helpful
+ * @route   POST /api/reviews/:reviewId/helpful
+ * @access  Private
+ */
+export const markHelpful = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    // Users should not mark their own review as helpful.
+    if (review.userId.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot mark your own review as helpful' });
+    }
+
+    review.helpfulCount = (review.helpfulCount || 0) + 1;
+    await review.save();
+
+    res.status(200).json({
+      message: 'Review marked as helpful',
+      helpfulCount: review.helpfulCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get the current user's review for a specific book
+ * @route   GET /api/reviews/:bookId/mine
+ * @access  Private
+ */
+export const getMyReview = async (req, res, next) => {
+  try {
+    const { bookId } = req.params;
+    const review = await Review.findOne({ userId: req.user._id, bookId }).lean();
+
+    if (!review) {
+      return res.status(404).json({ message: 'You have not reviewed this book yet' });
+    }
+
+    res.status(200).json({ review: { ...review, id: review._id.toString() } });
+  } catch (error) {
+    next(error);
+  }
+};

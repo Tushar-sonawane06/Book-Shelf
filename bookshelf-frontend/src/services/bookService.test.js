@@ -5,7 +5,7 @@ vi.mock('../utils/api.js', () => ({
 }));
 
 const api = (await import('../utils/api.js')).default;
-const { getBooksByIds, BookNotFoundError } = await import('./bookService.js');
+const { getBooksByIds, createBook, updateBook, deleteBook, updateBookStock, BookNotFoundError } = await import('./bookService.js');
 
 /**
  * The wishlist stores ids and nothing else, so something has to turn them
@@ -127,5 +127,45 @@ describe('getBooksByIds', () => {
     for (const call of api.get.mock.calls) {
       expect(call[1]).toEqual(expect.objectContaining({ signal: controller.signal }));
     }
+  });
+});
+
+describe('Admin CRUD API Service Methods', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('calls POST /books on createBook', async () => {
+    api.post = vi.fn().mockResolvedValue({ data: { id: 'b99', title: 'New Book' } });
+    const payload = { title: 'New Book', price: 299, inventory: 5 };
+    const result = await createBook(payload);
+
+    expect(api.post).toHaveBeenCalledWith('/books', payload);
+    expect(result).toEqual({ id: 'b99', title: 'New Book' });
+  });
+
+  it('calls PUT /books/:id on updateBook', async () => {
+    api.put = vi.fn().mockResolvedValue({ data: { id: 'b1', title: 'Updated Book' } });
+    const payload = { title: 'Updated Book' };
+    const result = await updateBook('b1', payload);
+
+    expect(api.put).toHaveBeenCalledWith('/books/b1', payload);
+    expect(result).toEqual({ id: 'b1', title: 'Updated Book' });
+  });
+
+  it('calls DELETE /books/:id on deleteBook', async () => {
+    api.delete = vi.fn().mockResolvedValue({ data: { message: 'Book deleted' } });
+    const result = await deleteBook('b1');
+
+    expect(api.delete).toHaveBeenCalledWith('/books/b1');
+    expect(result).toEqual({ message: 'Book deleted' });
+  });
+
+  it('calls PATCH /books/:id/stock on updateBookStock', async () => {
+    api.patch = vi.fn().mockResolvedValue({ data: { id: 'b1', inventory: 15 } });
+    const result = await updateBookStock('b1', { inventory: 15 });
+
+    expect(api.patch).toHaveBeenCalledWith('/books/b1/stock', { inventory: 15 });
+    expect(result).toEqual({ id: 'b1', inventory: 15 });
   });
 });

@@ -1,48 +1,61 @@
 import mongoose from 'mongoose';
 
 /**
- * Review schema for the book review system.
+ * Review schema for the BookShelf reviews & ratings system.
  *
- * Each review belongs to exactly one book and one user. A user may leave
- * only one review per book — enforced by a compound unique index. Reviews
- * carry a rating (1–5), an optional title, a body, and a helpful-vote
- * counter that readers can increment.
+ * Each review links a user to a book and records their rating (1-5 stars)
+ * and optional text. A unique compound index on (userId, bookId) ensures
+ * a user can only review a book once — duplicate reviews are rejected at
+ * the database level rather than relying on a race-prone application check.
  *
- * The `verifiedPurchase` flag is set server-side when the reviewer has
- * actually bought the book; it is not submitted by the client.
+ * The `verifiedPurchase` flag is set when the reviewer has a delivered order
+ * containing this book. It lets the UI surface a badge without a separate
+ * query against the orders collection on every render.
  */
 const reviewSchema = new mongoose.Schema(
   {
-    book: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Book',
-      required: [true, 'Book reference is required'],
-      index: true,
-    },
-    user: {
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'User reference is required'],
+      required: true,
+    },
+    bookId: {
+      type: String,
+      required: true,
+      trim: true,
     },
     rating: {
       type: Number,
-      required: [true, 'Rating is required'],
-      min: [1, 'Rating must be at least 1'],
-      max: [5, 'Rating must be at most 5'],
+      required: true,
+      min: 1,
+      max: 5,
     },
     title: {
       type: String,
       trim: true,
-      maxlength: [120, 'Review title cannot exceed 120 characters'],
+      maxlength: 150,
       default: '',
     },
     body: {
       type: String,
       trim: true,
-      maxlength: [2000, 'Review body cannot exceed 2000 characters'],
+      maxlength: 2000,
       default: '',
     },
+    /**
+     * Set to true when the reviewer has a delivered order containing
+     * this book. Computed at creation time and never changed — if the
+     * order is later returned the badge is arguably still valid.
+     */
     verifiedPurchase: {
+      type: Boolean,
+      default: false,
+    },
+    /**
+     * Soft-delete flag. The review stays in the database (and still
+     * affects the average rating) until the user or an admin removes it.
+     */
+    hidden: {
       type: Boolean,
       default: false,
     },
@@ -51,45 +64,20 @@ const reviewSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
-    helpfulBy: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
-    editedAt: {
-      type: Date,
-      default: null,
-    },
   },
   {
     timestamps: true,
   }
 );
 
-/**
- * One review per user per book. This prevents duplicate reviews and also
- * powers the upsert in the controller.
- */
-reviewSchema.index({ book: 1, user: 1 }, { unique: true });
+// One review per user per book.
+reviewSchema.index({ userId: 1, bookId: 1 }, { unique: true });
 
-/**
- * Partial index: only count unique helpful voters. Without this, a user
- * could click "helpful" twice and inflate the count.
- */
-reviewSchema.index({ book: 1, rating: 1 });
+// The main read path: all visible reviews for a book, newest first.
+reviewSchema.index({ bookId: 1, hidden: 1, createdAt: -1 });
 
-/**
- * Strip internal fields when serialising to JSON. The `helpfulBy` array
- * is member IDs — it should not leak to other users.
- */
-reviewSchema.set('toJSON', {
-  transform(_doc, ret) {
-    delete ret.helpfulBy;
-    delete ret.__v;
-    return ret;
-  },
-});
+// Helpful-count queries (top reviews).
+reviewSchema.index({ bookId: 1, hidden: 1, helpfulCount: -1 });
 
 const Review = mongoose.model('Review', reviewSchema);
 

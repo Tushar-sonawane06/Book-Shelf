@@ -1,0 +1,56 @@
+/* ── Stock Alert Button ─────────────────────────────────────────────── */
+
+.stock-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.stock-alert__btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 8px;
+  background: var(--color-surface, #fff);
+  color: var(--color-text, #111827);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.stock-alert__btn:hover:not(:disabled) {
+  border-color: var(--color-primary, #6366f1);
+  background: var(--color-primary-light, #eef2ff);
+}
+
+.stock-alert__btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.stock-alert__btn--active {
+  background: var(--color-primary-light, #eef2ff);
+  border-color: var(--color-primary, #6366f1);
+  color: var(--color-primary, #6366f1);
+  font-weight: 500;
+}
+
+.stock-alert__msg {
+  font-size: 0.78rem;
+  color: var(--color-success, #059669);
+}
+
+/* ── Dark mode ──────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .stock-alert__btn {
+    background: var(--color-surface-dark, #1f2937);
+    border-color: var(--color-border-dark, #4b5563);
+    color: var(--color-text-dark, #f9fafb);
+  }
+  .stock-alert__btn--active {
+    background: var(--color-primary-light-dark, #312e81);
+    border-color: var(--color-primary-dark, #818cf8);
+    color: var(--color-primary-dark, #818cf8);
+  }
+}

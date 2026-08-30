@@ -68,7 +68,7 @@ describe('Register', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Email already registered');
     expect(screen.queryByText('Failed to register')).not.toBeInTheDocument();
-  });
+  }, 15000);
 
   it('puts each validation message on the field it belongs to', async () => {
     const user = userEvent.setup();

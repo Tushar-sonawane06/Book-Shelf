@@ -22,7 +22,7 @@ export default function AIBookSummaryCard({
     <div className="ai-summary-card">
       <div className="ai-summary-card__header">
         <div>
-          <h2>{title}</h2>
+          <h3 className="ai-summary-title">AI Summary: {title}</h3>
           <p>{author}</p>
         </div>
         <span className="badge">{confidence}% AI Confidence</span>

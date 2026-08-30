@@ -1,102 +1,150 @@
 import api from '../utils/api.js';
 
 /**
- * Review service.
+ * Service layer for the BookShelf reviews API.
  *
- * Mirrors the REST surface exposed by bookshelf-backend/routes/reviewRoutes.js.
- * Every function goes through `utils/api.js`, inheriting the retry policy,
- * the 10-second timeout and the normalised error shape.
+ * Every function goes through the shared axios instance so it inherits the
+ * retry policy, timeout, and normalised error shape.
  */
 
 /**
- * Fetch paginated reviews for a book.
+ * @typedef {Object} ReviewPage
+ * @property {Array} reviews
+ * @property {number} page
+ * @property {number} limit
+ * @property {number} totalReviews
+ * @property {number} totalPages
+ */
+
+/**
+ * @typedef {Object} ReviewBreakdown
+ * @property {string} bookId
+ * @property {number} averageRating
+ * @property {number} totalReviews
+ * @property {Array<{star: number, count: number}>} breakdown
+ */
+
+/**
+ * @typedef {Object} Review
+ * @property {string} id
+ * @property {string} userId
+ * @property {string} bookId
+ * @property {number} rating
+ * @property {string} title
+ * @property {string} body
+ * @property {boolean} verifiedPurchase
+ * @property {number} helpfulCount
+ * @property {string} createdAt
+ * @property {string} updatedAt
+ */
+
+/**
+ * Fetch a page of reviews for a book.
  *
  * @param {string} bookId
- * @param {{ page?: number, limit?: number, sort?: string }} options
- * @param {{ signal?: AbortSignal }} fetchOptions
- * @returns {Promise<{ reviews: object[], page: number, limit: number, total: number, totalPages: number }>}
+ * @param {Object} [opts]
+ * @param {number} [opts.page=1]
+ * @param {number} [opts.limit=10]
+ * @param {string} [opts.sort='newest'] — 'newest' | 'helpful'
+ * @param {AbortSignal} [opts.signal]
+ * @returns {Promise<ReviewPage>}
  */
-export async function getReviews(bookId, options = {}, { signal } = {}) {
-  const { page = 1, limit = 10, sort = 'newest' } = options;
-
-  const response = await api.get(`/reviews/book/${encodeURIComponent(bookId)}`, {
+export async function getBookReviews(bookId, { page = 1, limit = 10, sort = 'newest', signal } = {}) {
+  const response = await api.get(`/reviews/${encodeURIComponent(bookId)}`, {
     params: { page, limit, sort },
     signal,
   });
-
   return response.data;
 }
 
 /**
- * Rating breakdown for a book (average, total, per-star count).
+ * Fetch the star-distribution breakdown for a book.
  *
  * @param {string} bookId
- * @param {{ signal?: AbortSignal }} fetchOptions
- * @returns {Promise<{ average: number, total: number, breakdown: Record<number, number> }>}
+ * @param {Object} [opts]
+ * @param {AbortSignal} [opts.signal]
+ * @returns {Promise<ReviewBreakdown>}
  */
-export async function getReviewStats(bookId, { signal } = {}) {
-  const response = await api.get(
-    `/reviews/book/${encodeURIComponent(bookId)}/stats`,
-    { signal }
-  );
-
+export async function getReviewBreakdown(bookId, { signal } = {}) {
+  const response = await api.get(`/reviews/${encodeURIComponent(bookId)}/breakdown`, {
+    signal,
+  });
   return response.data;
 }
 
 /**
- * Submit (or update) the caller's review for a book.
+ * Create a new review.
  *
- * Returns the persisted review document from the server.
- *
- * @param {string} bookId
- * @param {{ rating: number, title?: string, body?: string }} payload
- * @returns {Promise<object>}
+ * @param {Object} data
+ * @param {string} data.bookId
+ * @param {number} data.rating — 1-5
+ * @param {string} [data.title]
+ * @param {string} [data.body]
+ * @returns {Promise<{message: string, review: Review}>}
  */
-export async function submitReview(bookId, { rating, title = '', body = '' }) {
-  const response = await api.post(
-    `/reviews/book/${encodeURIComponent(bookId)}`,
-    { rating, title, body }
-  );
-
+export async function createReview({ bookId, rating, title, body }) {
+  const response = await api.post('/reviews', { bookId, rating, title, body });
   return response.data;
 }
 
 /**
- * Delete a review by id.
- *
- * Only the review's author may do this; the server returns 403 otherwise.
+ * Update an existing review.
  *
  * @param {string} reviewId
- * @returns {Promise<{ message: string }>}
+ * @param {Object} updates
+ * @param {number} [updates.rating]
+ * @param {string} [updates.title]
+ * @param {string} [updates.body]
+ * @returns {Promise<{message: string, review: Review}>}
+ */
+export async function updateReview(reviewId, updates) {
+  const response = await api.put(`/reviews/${encodeURIComponent(reviewId)}`, updates);
+  return response.data;
+}
+
+/**
+ * Delete (soft-hide) a review.
+ *
+ * @param {string} reviewId
+ * @returns {Promise<{message: string}>}
  */
 export async function deleteReview(reviewId) {
-  const response = await api.delete(
-    `/reviews/${encodeURIComponent(reviewId)}`
-  );
-
+  const response = await api.delete(`/reviews/${encodeURIComponent(reviewId)}`);
   return response.data;
 }
 
 /**
- * Toggle the "helpful" vote on a review.
- *
- * If the caller has already voted the vote is removed; otherwise it is added.
+ * Mark a review as helpful.
  *
  * @param {string} reviewId
- * @returns {Promise<{ helpfulCount: number, voted: boolean }>}
+ * @returns {Promise<{message: string, helpfulCount: number}>}
  */
-export async function toggleHelpful(reviewId) {
-  const response = await api.put(
-    `/reviews/${encodeURIComponent(reviewId)}/helpful`
-  );
+export async function markReviewHelpful(reviewId) {
+  const response = await api.post(`/reviews/${encodeURIComponent(reviewId)}/helpful`);
+  return response.data;
+}
 
+/**
+ * Get the current user's review for a specific book.
+ *
+ * @param {string} bookId
+ * @param {Object} [opts]
+ * @param {AbortSignal} [opts.signal]
+ * @returns {Promise<{review: Review}>}
+ */
+export async function getMyReview(bookId, { signal } = {}) {
+  const response = await api.get(`/reviews/${encodeURIComponent(bookId)}/mine`, {
+    signal,
+  });
   return response.data;
 }
 
 export default {
-  getReviews,
-  getReviewStats,
-  submitReview,
+  getBookReviews,
+  getReviewBreakdown,
+  createReview,
+  updateReview,
   deleteReview,
-  toggleHelpful,
+  markReviewHelpful,
+  getMyReview,
 };

@@ -4,14 +4,60 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BookShelf — Find your next read</title>
+    <!--
+      The document default, for the moment before React mounts and for any
+      route that has nothing more specific to say. Every page sets its own
+      through usePageMetadata(); this is what they restore to.
+
+      Kept in step with DEFAULT_TITLE and DEFAULT_DESCRIPTION in
+      src/utils/pageTitle.js — src/utils/pageTitle.test.js reads this file and
+      asserts the two agree, because a default that lives in two places and is
+      never compared is a default that will diverge.
+    -->
+    <meta
+      name="description"
+      content="Browse and buy books from the BookShelf catalogue — fiction, mystery, sci-fi, poetry and more, with a wishlist and a fast checkout."
+    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/assets/index-CBlH9XQx.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-HhbgSFQ7.css">
+    <!--
+      Sets data-theme before the browser paints, so a returning visitor never
+      sees a flash of the wrong theme while the bundle loads.
+
+      This has to run before any module exists, so it cannot import
+      src/utils/themeBoot.js. It implements the same rule, and
+      src/utils/themeBoot.test.js executes this exact block and asserts the two
+      agree — the previous version of this script was a SyntaxError that the
+      browser discarded whole, and nothing caught it because an inline script
+      is invisible to both ESLint and the bundler.
+
+      It reads localStorage and never writes to it. Recording the resolved
+      value here would turn "no preference, follow the OS" into an explicit
+      choice on first load.
+    -->
+    <script>
+      (function () {
+        var theme = 'light';
+        try {
+          var saved = localStorage.getItem('theme');
+          if (saved === 'light' || saved === 'dark') {
+            theme = saved;
+          } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            theme = 'dark';
+          }
+        } catch (e) {
+          // Storage can be unavailable outright — Safari private browsing, or
+          // site data blocked. Fall through with the light default.
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-D6Jcicyn.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CSO30hN_.css">
   </head>
   <body>
     <div id="root"></div>

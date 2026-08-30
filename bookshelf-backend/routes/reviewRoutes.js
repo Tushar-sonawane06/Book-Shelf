@@ -1,37 +1,38 @@
 import express from 'express';
 import {
-  getReviewsForBook,
-  createOrUpdateReview,
+  getBookReviews,
+  getReviewBreakdown,
+  createReview,
+  updateReview,
   deleteReview,
-  toggleHelpful,
-  getReviewStats,
+  markHelpful,
+  getMyReview,
 } from '../controllers/reviewController.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { validateBody } from '../middleware/validateBody.js';
+import {
+  createReviewSchema,
+  updateReviewSchema,
+} from '../validators/reviewValidators.js';
 
 const router = express.Router();
 
 /**
- * Public routes: reading reviews and stats does not require authentication.
- * Write operations require a session.
+ * Public routes — anyone can read reviews and breakdowns.
  *
- * The bookId is in the path because reviews are always scoped to a book.
- * The reviewId for update/delete/helpful is a separate param so the route
- * shape stays RESTful: /api/reviews/book/:bookId for listing, /api/reviews/:reviewId/actions for actions.
+ * The :bookId route is registered before /mine so Express does not
+ * match the literal string "mine" as a book id.
  */
+router.get('/:bookId/breakdown', getReviewBreakdown);
+router.get('/:bookId/mine', protect, getMyReview);
+router.get('/:bookId', getBookReviews);
 
-// GET /api/reviews/book/:bookId — paginated reviews for a book
-router.get('/book/:bookId', getReviewsForBook);
-
-// GET /api/reviews/book/:bookId/stats — rating breakdown
-router.get('/book/:bookId/stats', getReviewStats);
-
-// POST /api/reviews/book/:bookId — create or update the caller's review
-router.post('/book/:bookId', protect, createOrUpdateReview);
-
-// DELETE /api/reviews/:reviewId — delete own review
+/**
+ * Authenticated routes — require a valid session cookie.
+ */
+router.post('/', protect, validateBody(createReviewSchema), createReview);
+router.put('/:reviewId', protect, validateBody(updateReviewSchema), updateReview);
 router.delete('/:reviewId', protect, deleteReview);
-
-// PUT /api/reviews/:reviewId/helpful — toggle helpful vote
-router.put('/:reviewId/helpful', protect, toggleHelpful);
+router.post('/:reviewId/helpful', protect, markHelpful);
 
 export default router;

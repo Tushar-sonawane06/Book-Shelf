@@ -5,6 +5,9 @@ import { Elements } from '@stripe/react-stripe-js';
 
 import paymentService from '../services/paymentService.js';
 import CheckoutForm from '../components/CheckoutForm.jsx';
+import CheckoutGateway from '../components/CheckoutGateway.jsx';
+import CouponInput from '../components/CouponInput.jsx';
+import GuestCheckoutForm from '../components/GuestCheckoutForm.jsx';
 import { useCart } from '../hooks/useCart.js';
 import {
   ADDRESS_FIELDS,
@@ -17,6 +20,7 @@ import {
   validateAddress,
 } from '../utils/checkoutValidation.js';
 import { formatMoney } from '../utils/currency.js';
+import '../components/CouponInput.css';
 import './Checkout.css';
 import { usePageMetadata } from '../hooks/usePageMetadata.js';
 
@@ -77,6 +81,35 @@ export default function Checkout() {
   // Only known once the server has priced the cart; until then the summary
   // labels its subtotal with this deployment's configured currency.
   const [currency, setCurrency] = useState(undefined);
+  /*
+   * The code the customer typed, and the coupon the *server* actually
+   * applied. Two values, deliberately.
+   *
+   * `couponCode` is an intent: what to send with the next create-intent call.
+   * `appliedCoupon` is a fact: what came back on the response, alongside the
+   * total that was charged for it. The summary renders the fact.
+   *
+   * They used to be one thing — a discount from `/api/coupons/validate`,
+   * rendered next to a total that had never heard of it, so the page showed a
+   * saving the customer did not get. See #418.
+   */
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponNotice, setCouponNotice] = useState('');
+
+  /*
+   * Which of the three views the page is showing: the address form
+   * ('standard'), the choice of how to check out ('gateway'), or the guest
+   * details form ('guest').
+   *
+   * It lives here, with the other hooks, and not next to the branch that
+   * reads it. It used to sit below the "checkout unavailable" early return,
+   * so a deployment with no publishable key ran one fewer hook than one with
+   * a key and React threw `Rendered more hooks than during the previous
+   * render` the moment the two rendered in sequence. Same defect as #365 and
+   * #366: what matters is where the call is, not where the value is used.
+   */
+  const [mode, setMode] = useState('standard');
 
   const items = useMemo(() => toOrderItems(cart), [cart]);
   const bookCount = useMemo(() => countItems(cart), [cart]);
@@ -123,6 +156,13 @@ export default function Checkout() {
       const data = await paymentService.createPaymentIntent({
         items,
         shippingAddress: normalised,
+        /*
+         * The code only. Not the discount, and not the subtotal — the server
+         * prices the cart from the catalogue and recomputes what the coupon
+         * is worth against *that*. A client that could state its own discount
+         * could state its own price.
+         */
+        couponCode: couponCode || undefined,
       });
 
       if (!data?.clientSecret) {
@@ -133,6 +173,21 @@ export default function Checkout() {
       setOrderId(data.orderId ?? '');
       setAmount(data.amount ?? null);
       setCurrency(data.currency ?? data.amount?.currency);
+
+      /*
+       * What the server did with the code, which is not always what the
+       * preview promised: a coupon can expire, be deactivated or hit its
+       * usage limit between the customer applying it and submitting the
+       * address. The order is priced without it in that case rather than
+       * refused — the cart is still good — so the page has to say why the
+       * discount is gone instead of quietly dropping the row.
+       */
+      setAppliedCoupon(data.coupon ?? null);
+      setCouponNotice(
+        data.couponError
+          ? `${data.couponError.message}. The order has been priced without it.`
+          : ''
+      );
     } catch (error) {
       // The old page swallowed this into console.error and left the customer
       // on a spinner forever. Say what happened and let them retry.
@@ -148,6 +203,22 @@ export default function Checkout() {
     // cart of anyone whose card is declined.
     clearCart();
   }, [clearCart]);
+
+  /*
+   * Stable identities, because CheckoutGateway takes onProceedToAuth as an
+   * effect dependency. Passed as inline arrows these were a fresh function on
+   * every render, so the effect re-ran on every render and only stopped
+   * looping because setMode happened to be called with the value it already
+   * held.
+   */
+  const showGateway = useCallback(() => setMode('gateway'), []);
+  const showAddressStep = useCallback(() => setMode('standard'), []);
+  const showGuestStep = useCallback(() => setMode('guest'), []);
+
+  const handleGuestOrderComplete = useCallback(() => {
+    clearCart();
+    navigate('/order-confirmation');
+  }, [clearCart, navigate]);
 
   if (!stripePromise) {
     return (
@@ -180,9 +251,44 @@ export default function Checkout() {
     );
   }
 
+  if (mode === 'gateway') {
+    return (
+      <main className="checkout">
+        <CheckoutGateway
+          onProceedToAuth={showAddressStep}
+          onProceedToGuest={showGuestStep}
+        />
+      </main>
+    );
+  }
+
+  if (mode === 'guest') {
+    return (
+      <main className="checkout">
+        <GuestCheckoutForm
+          onBack={showAddressStep}
+          onOrderComplete={handleGuestOrderComplete}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="checkout">
       <h1 className="checkout__title">Secure checkout</h1>
+
+      {/*
+        The gateway is how someone gets to the guest form. Before this it was
+        unreachable: `mode` started at 'standard' and the only setter on the
+        page passed 'guest', so the component, its stylesheet and the log-in
+        and register choices it offers were dead from the day they merged.
+      */}
+      <p className="checkout__alt">
+        Checking out for the first time?{' '}
+        <button type="button" className="checkout__alt-btn" onClick={showGateway}>
+          See your options
+        </button>
+      </p>
 
       <div className="checkout__layout">
         <section className="checkout__panel" aria-labelledby="checkout-details">
@@ -255,6 +361,30 @@ export default function Checkout() {
         <aside className="checkout__panel checkout__summary" aria-label="Order summary">
           <h2 className="checkout__section-title">Order summary</h2>
 
+          <CouponInput
+            subtotal={subtotal}
+            currency={currency}
+            onApply={(result) => {
+              // Only the code is kept. The saving shown in the badge is the
+              // preview's estimate; the binding number arrives with the
+              // payment intent and is rendered in the totals below.
+              setCouponCode(result.code || '');
+              setCouponNotice('');
+            }}
+            onRemove={() => {
+              setCouponCode('');
+              setAppliedCoupon(null);
+              setCouponNotice('');
+            }}
+            disabled={!!clientSecret}
+          />
+
+          {couponNotice && (
+            <p className="checkout__coupon-notice" role="status">
+              {couponNotice}
+            </p>
+          )}
+
           <ul className="checkout__lines">
             {cart.map((item) => (
               <li className="checkout__line" key={item.id ?? item.bookId}>
@@ -275,13 +405,27 @@ export default function Checkout() {
               <dd>{money(amount ? amount.subtotal : subtotal, currency)}</dd>
             </div>
 
-            {/*
-              Tax and shipping are decided by the server, so they only appear
-              once it has told us what they are. Showing a guess next to a
-              real card form is how a customer ends up disputing a charge.
-            */}
             {amount && (
               <>
+                {/*
+                  Rendered from the server's response, and only when the
+                  server actually applied something. It sits between the
+                  subtotal and the tax because that is where it lands in the
+                  arithmetic — the tax below is charged on the discounted
+                  goods.
+                */}
+                {amount.discount > 0 && (
+                  <div className="checkout__total-row checkout__total-row--discount">
+                    <dt>
+                      Discount
+                      {appliedCoupon?.code ? ` (${appliedCoupon.code})` : ''}
+                    </dt>
+                    <dd className="checkout__discount">
+                      −{money(amount.discount, currency)}
+                    </dd>
+                  </div>
+                )}
+
                 <div className="checkout__total-row">
                   <dt>Tax</dt>
                   <dd>{money(amount.tax, currency)}</dd>
