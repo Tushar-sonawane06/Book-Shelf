@@ -25,6 +25,7 @@ import DesignSystemPage from '../pages/DesignSystemPage.jsx';
 import NotFound from '../pages/NotFound.jsx';
 import PriceAlertsPage from '../pages/PriceAlertsPage.jsx';
 import StockAlertsPage from '../pages/StockAlertsPage.jsx';
+import PriceAlertsPage from '../pages/PriceAlertsPage.jsx';
 
 /**
  * The single route table for the app.
@@ -170,6 +171,26 @@ export default function AppRoutes() {
           }
         />
 
+        <Route path="book/:id/reviews" element={<BookReviewsPage />} />
+
+        <Route
+          path="reading-list"
+          element={
+            <ProtectedRoute>
+              <ReadingListPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="price-alerts"
+          element={
+            <ProtectedRoute>
+              <PriceAlertsPage />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="price-alerts"
           element={
@@ -184,6 +205,15 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute>
               <StockAlertsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="reading-goals"
+          element={
+            <ProtectedRoute>
+              <ReadingGoalPage />
             </ProtectedRoute>
           }
         />
@@ -207,6 +237,8 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        <Route path="compare" element={<BookComparePage />} />
 
         <Route path="*" element={<NotFound />} />
       </Route>

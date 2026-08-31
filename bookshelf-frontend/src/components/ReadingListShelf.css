@@ -1,0 +1,191 @@
+/* ── Reading List Shelf ──────────────────────────────────────────────────── */
+
+.reading-shelf {
+  margin-bottom: 2rem;
+}
+
+.reading-shelf__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 1rem;
+}
+
+.reading-shelf__icon {
+  font-size: 1.25rem;
+}
+
+.reading-shelf__count {
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  margin-left: 0.25rem;
+}
+
+/* Card grid */
+.reading-shelf__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+
+/* Card */
+.reading-shelf__card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  transition: box-shadow 0.2s ease;
+}
+
+.reading-shelf__card:hover {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.reading-shelf__card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.reading-shelf__book-id {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1f2937;
+  word-break: break-word;
+}
+
+.reading-shelf__date {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+/* Progress */
+.reading-shelf__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.reading-shelf__progress-track {
+  flex: 1;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.reading-shelf__progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.reading-shelf__progress-pct {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+/* Rating */
+.reading-shelf__rating {
+  font-size: 0.85rem;
+  color: #f59e0b;
+  margin-bottom: 0.35rem;
+}
+
+/* Notes */
+.reading-shelf__notes-preview {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  color: #6b7280;
+  line-height: 1.45;
+}
+
+/* Dates */
+.reading-shelf__dates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.78rem;
+  color: #9ca3af;
+}
+
+/* Actions */
+.reading-shelf__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.reading-shelf__move-select {
+  flex: 1;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: #374151;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.reading-shelf__expand-btn,
+.reading-shelf__remove-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.3rem 0.45rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: #6b7280;
+}
+
+.reading-shelf__expand-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.reading-shelf__remove-btn:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .reading-shelf__title { color: #f9fafb; }
+  .reading-shelf__count { background: #374151; color: #9ca3af; }
+
+  .reading-shelf__card {
+    background: #1f2937;
+    border-color: #374151;
+  }
+
+  .reading-shelf__book-id { color: #f3f4f6; }
+  .reading-shelf__progress-track { background: #374151; }
+
+  .reading-shelf__move-select {
+    background: #111827;
+    border-color: #4b5563;
+    color: #d1d5db;
+  }
+
+  .reading-shelf__actions {
+    border-top-color: #374151;
+  }
+}

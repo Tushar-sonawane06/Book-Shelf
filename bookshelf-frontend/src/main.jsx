@@ -6,6 +6,7 @@ import AppRoutes from './routes/AppRoutes.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { WishlistProvider } from './context/WishlistContext.jsx';
 import { CartProvider } from './context/CartContext.jsx';
+import { ComparisonProvider } from './context/ComparisonContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 
 // Side-effect import: this is what actually calls i18n.init(). Nothing
@@ -34,9 +35,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <AuthProvider>
         <WishlistProvider>
           <CartProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
+            <ComparisonProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </ComparisonProvider>
           </CartProvider>
         </WishlistProvider>
       </AuthProvider>
