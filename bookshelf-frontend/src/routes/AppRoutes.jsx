@@ -29,6 +29,8 @@ import BookComparePage from '../pages/BookComparePage.jsx';
 import ReadingGoalPage from '../pages/ReadingGoalPage.jsx';
 import StockAlertsPage from '../pages/StockAlertsPage.jsx';
 import PriceAlertsPage from '../pages/PriceAlertsPage.jsx';
+import BookClubsPage from '../pages/BookClubsPage.jsx';
+import BookClubDetailPage from '../pages/BookClubDetailPage.jsx';
 
 /**
  * The single route table for the app.
@@ -250,6 +252,16 @@ export default function AppRoutes() {
         />
 
         <Route path="compare" element={<BookComparePage />} />
+
+        <Route path="book-clubs" element={<BookClubsPage />} />
+        <Route
+          path="book-clubs/:id"
+          element={
+            <ProtectedRoute>
+              <BookClubDetailPage />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="*" element={<NotFound />} />
       </Route>

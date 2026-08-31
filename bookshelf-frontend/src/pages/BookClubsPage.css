@@ -1,0 +1,441 @@
+/* ── Book Clubs Page ─────────────────────────────────────────────────────── */
+
+.bc-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  min-height: 80vh;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.bc-page__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.bc-page__title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+  color: var(--text-primary, #1a1a2e);
+}
+
+.bc-page__subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary, #6b7280);
+  margin: 0;
+}
+
+.bc-page__create-btn {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 8px;
+  background: #6366f1;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.bc-page__create-btn:hover {
+  background: #4f46e5;
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+
+.bc-page__toast {
+  background: #10b981;
+  color: #fff;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+  animation: bcToastIn 0.3s ease;
+}
+
+@keyframes bcToastIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Create Form ─────────────────────────────────────────────────────────── */
+
+.bc-page__create-form {
+  background: var(--bg-secondary, #f9fafb);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.bc-page__form-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: var(--text-primary, #1a1a2e);
+}
+
+.bc-page__form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.bc-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bc-page__field--full {
+  grid-column: 1 / -1;
+}
+
+.bc-page__field label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary, #6b7280);
+}
+
+.bc-page__field input[type="text"],
+.bc-page__field select,
+.bc-page__field textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #1a1a2e);
+  transition: border-color 0.2s;
+}
+
+.bc-page__field input[type="text"]:focus,
+.bc-page__field select:focus,
+.bc-page__field textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.bc-page__checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text-primary, #1a1a2e);
+}
+
+.bc-page__submit-btn {
+  margin-top: 1rem;
+  padding: 0.6rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  background: #6366f1;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.bc-page__submit-btn:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.bc-page__submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Sections ────────────────────────────────────────────────────────────── */
+
+.bc-page__section {
+  margin-bottom: 2.5rem;
+}
+
+.bc-page__section-title {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: var(--text-primary, #1a1a2e);
+}
+
+/* ── Search Bar ──────────────────────────────────────────────────────────── */
+
+.bc-page__search-bar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.bc-page__search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #1a1a2e);
+}
+
+.bc-page__search-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.bc-page__genre-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #1a1a2e);
+}
+
+.bc-page__search-btn {
+  padding: 0.5rem 1.2rem;
+  border: none;
+  border-radius: 8px;
+  background: #6366f1;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.bc-page__search-btn:hover {
+  background: #4f46e5;
+}
+
+/* ── Club Grid ───────────────────────────────────────────────────────────── */
+
+.bc-page__club-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
+.bc-page__club-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  background: var(--bg-secondary, #f9fafb);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.bc-page__club-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.bc-page__club-card--mine {
+  border-color: #6366f1;
+  border-width: 2px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(99, 102, 241, 0.01));
+}
+
+.bc-page__club-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.bc-page__club-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary, #1a1a2e);
+}
+
+.bc-page__club-genre {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #6d28d9;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.bc-page__club-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bc-page__club-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #9ca3af);
+  margin-bottom: 0.75rem;
+}
+
+.bc-page__club-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color, #f3f4f6);
+}
+
+.bc-page__view-btn {
+  padding: 0.35rem 0.85rem;
+  border: 1px solid #6366f1;
+  border-radius: 6px;
+  color: #6366f1;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.bc-page__view-btn:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.bc-page__join-btn {
+  padding: 0.35rem 0.85rem;
+  border: none;
+  border-radius: 6px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.bc-page__join-btn:hover {
+  background: #4f46e5;
+}
+
+.bc-page__member-badge {
+  font-size: 0.85rem;
+  color: #10b981;
+  font-weight: 500;
+}
+
+/* ── Loading / Empty ─────────────────────────────────────────────────────── */
+
+.bc-page__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 0;
+  color: var(--text-secondary, #6b7280);
+}
+
+.bc-page__spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border-color, #e5e7eb);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: bcSpin 0.8s linear infinite;
+}
+
+@keyframes bcSpin {
+  to { transform: rotate(360deg); }
+}
+
+.bc-page__empty {
+  text-align: center;
+  padding: 3rem 0;
+  color: var(--text-secondary, #6b7280);
+  font-size: 1rem;
+}
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+
+.bc-page__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.bc-page__page-btn {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #1a1a2e);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.bc-page__page-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.bc-page__page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bc-page__page-info {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .bc-page {
+    padding: 1.25rem 1rem;
+  }
+
+  .bc-page__title {
+    font-size: 1.5rem;
+  }
+
+  .bc-page__header {
+    flex-direction: column;
+  }
+
+  .bc-page__form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bc-page__club-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bc-page__search-bar {
+    flex-direction: column;
+  }
+
+  .bc-page__search-input,
+  .bc-page__genre-select {
+    min-width: unset;
+  }
+}
