@@ -23,10 +23,7 @@ import AdminDashboard from '../pages/AdminDashboard.jsx';
 import CollectionsPage from '../pages/CollectionsPage.jsx';
 import DesignSystemPage from '../pages/DesignSystemPage.jsx';
 import NotFound from '../pages/NotFound.jsx';
-import BookReviewsPage from '../pages/BookReviewsPage.jsx';
-import ReadingListPage from '../pages/ReadingListPage.jsx';
-import BookComparePage from '../pages/BookComparePage.jsx';
-import ReadingGoalPage from '../pages/ReadingGoalPage.jsx';
+import PriceAlertsPage from '../pages/PriceAlertsPage.jsx';
 import StockAlertsPage from '../pages/StockAlertsPage.jsx';
 import PriceAlertsPage from '../pages/PriceAlertsPage.jsx';
 
@@ -181,6 +178,15 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute>
               <ReadingListPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="price-alerts"
+          element={
+            <ProtectedRoute>
+              <PriceAlertsPage />
             </ProtectedRoute>
           }
         />
