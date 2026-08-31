@@ -1,5 +1,6 @@
 import BookClub from '../models/BookClub.js';
 import User from '../models/User.js';
+import eventBus, { EVENTS } from '../utils/eventEmitter.js';
 
 /**
  * Format a club document for full API response.
@@ -426,6 +427,15 @@ export async function setCurrentBook(clubId, user, { bookId, bookTitle }) {
   }
 
   await club.save();
+
+  await eventBus.emitAsync(EVENTS.BOOK_CLUB_BOOK_CHANGED, {
+    clubId: club._id.toString(),
+    clubName: club.name,
+    bookId,
+    bookTitle,
+    memberUserIds: club.members.map((m) => m.userId.toString()),
+  });
+
   return formatClub(club);
 }
 

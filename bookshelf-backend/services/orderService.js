@@ -1,5 +1,6 @@
 import orderRepository from '../repositories/orderRepository.js';
 import { canAccess } from '../utils/roles.js';
+import eventBus, { EVENTS } from '../utils/eventEmitter.js';
 
 export const VALID_STATUSES = [
   'pending',
@@ -56,6 +57,24 @@ export async function updateOrderStatus(orderId, status) {
   }
 
   const updatedOrder = await orderRepository.updateStatus(orderId, status);
+
+  if (order.status !== status) {
+    const userIdStr = updatedOrder?.userId
+      ? updatedOrder.userId.toString()
+      : order?.userId
+      ? order.userId.toString()
+      : null;
+
+    if (userIdStr) {
+      await eventBus.emitAsync(EVENTS.ORDER_STATUS_CHANGED, {
+        orderId: updatedOrder?._id ? updatedOrder._id.toString() : orderId,
+        userId: userIdStr,
+        oldStatus: order.status,
+        newStatus: status,
+      });
+    }
+  }
+
   return updatedOrder;
 }
 
@@ -85,5 +104,21 @@ export async function cancelOrder(orderId, currentUser) {
   }
 
   const canceledOrder = await orderRepository.cancelOrder(orderId);
+
+  const userIdStr = canceledOrder?.userId
+    ? canceledOrder.userId.toString()
+    : order?.userId
+    ? order.userId.toString()
+    : null;
+
+  if (userIdStr) {
+    await eventBus.emitAsync(EVENTS.ORDER_STATUS_CHANGED, {
+      orderId: canceledOrder?._id ? canceledOrder._id.toString() : orderId,
+      userId: userIdStr,
+      oldStatus: order.status,
+      newStatus: 'canceled',
+    });
+  }
+
   return { isAlreadyCanceled: false, order: canceledOrder };
 }
