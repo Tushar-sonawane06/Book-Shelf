@@ -194,6 +194,24 @@ export default function AppRoutes() {
         />
 
         <Route
+          path="price-alerts"
+          element={
+            <ProtectedRoute>
+              <PriceAlertsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="reading-goals"
+          element={
+            <ProtectedRoute>
+              <ReadingGoalPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="stock-alerts"
           element={
             <ProtectedRoute>
