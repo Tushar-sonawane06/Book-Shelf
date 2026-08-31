@@ -1,0 +1,94 @@
+/* ── Compare Bar ─────────────────────────────────────────────────────────── */
+
+.compare-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #111827;
+  color: #f9fafb;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+  animation: cb-slide-up 0.25s ease;
+}
+
+@keyframes cb-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.compare-bar__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.compare-bar__count {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.compare-bar__icon {
+  font-size: 1.1rem;
+}
+
+.compare-bar__hint {
+  color: #9ca3af;
+  font-size: 0.8rem;
+  margin-left: 0.25rem;
+}
+
+.compare-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.compare-bar__clear-btn {
+  background: none;
+  border: 1px solid #4b5563;
+  border-radius: 6px;
+  padding: 0.4rem 0.85rem;
+  color: #d1d5db;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.compare-bar__clear-btn:hover {
+  background: #374151;
+  color: #f9fafb;
+}
+
+.compare-bar__compare-btn {
+  display: inline-flex;
+  align-items: center;
+  background: #6366f1;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.compare-bar__compare-btn:hover {
+  background: #4f46e5;
+}
+
+/* Dark mode already dark — light mode override */
+@media (prefers-color-scheme: light) {
+  .compare-bar {
+    background: #1f2937;
+  }
+}

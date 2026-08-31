@@ -1,7 +1,9 @@
+import { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import WishlistButton from './WishlistButton.jsx';
 import { useWishlist } from '../hooks/useWishlist.js';
 import { useCart } from '../hooks/useCart.js';
+import { ComparisonContext } from '../context/ComparisonContext.jsx';
 import { formatPrice, formatRating, isInStock } from '../utils/bookFormat.js';
 import './BookCard.css';
 
@@ -18,7 +20,9 @@ import './BookCard.css';
 export default function BookCard({ book, onAddToCart }) {
   const { isWishlisted, toggleWishlist } = useWishlist();
   const { addToCart } = useCart();
+  const { isComparing, toggleCompare, compareCount, maxCompare } = useContext(ComparisonContext);
   const wishlisted = isWishlisted(book.id);
+  const comparing = isComparing(book.id);
 
   // `book.rating.toFixed(1)` ran unguarded here. Nothing requires a book to
   // carry a rating, and one record without it threw a TypeError that took the
@@ -69,6 +73,16 @@ export default function BookCard({ book, onAddToCart }) {
             disabled={!available}
           >
             {available ? 'Add to cart' : 'Out of stock'}
+          </button>
+          <button
+            type="button"
+            className={`book-card__compare ${comparing ? 'book-card__compare--active' : ''}`}
+            onClick={() => toggleCompare(book.id)}
+            disabled={!comparing && compareCount >= maxCompare}
+            title={comparing ? 'Remove from comparison' : 'Add to comparison'}
+            aria-label={comparing ? 'Remove from comparison' : 'Add to comparison'}
+          >
+            {comparing ? '⚖️' : '⚖️'}
           </button>
         </div>
       </div>
