@@ -7,7 +7,7 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import wishlistRoutes from './routes/wishlistRoutes.js';
 import bookRoutes from './routes/books.js';
-import priceAlertRoutes from './routes/priceAlertRoutes.js';
+import readingGoalRoutes from './routes/readingGoalRoutes.js';
 import stockAlertRoutes from './routes/stockAlertRoutes.js';
 import priceAlertRoutes from './routes/priceAlertRoutes.js';
 import stripeWebhookHandler from './webhook/stripeWebhook.js';
@@ -38,7 +38,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/books', bookRoutes);
-app.use('/api/price-alerts', priceAlertRoutes);
+app.use('/api/reading-goals', readingGoalRoutes);
 app.use('/api/stock-alerts', stockAlertRoutes);
 app.use('/api/price-alerts', priceAlertRoutes);
 
